@@ -3,6 +3,6 @@
 
 ### Prerequisites
 
-``bash
+```bash
    pip install flask
 ```
