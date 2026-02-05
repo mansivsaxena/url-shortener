@@ -1,9 +1,11 @@
-import random
+import json
 import re
 
-BASE62_CHARS = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+from flask import request
 
-url_counter = random.randint(100000, 999999)
+BASE62_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+url_counter = 0
 
 # regex pattern to validate urls
 URL_PATTERN = re.compile(
@@ -15,18 +17,37 @@ URL_PATTERN = re.compile(
     r')'
     r'(?::\d+)?'  # optional port number
     r'(?:/?|[/?]\S+)?$',  # optional path
-    re.IGNORECASE
+    re.IGNORECASE,
 )
 
-def validate_url(url):
-    return len(url) > 0 and URL_PATTERN.match(url) is not None
+def is_valid_url(url):
+    return URL_PATTERN.match(url) is not None
+
+def bad_request():
+    return "error", 400
+
+def extract_url(body):
+    if not isinstance(body, dict):
+        return None
+    return body.get("url") or body.get("value")
+
+def get_json_body():
+    body = request.get_json(silent=True)
+    if body is not None:
+        return body
+
+    raw = (request.data or b"").strip()
+    if not raw:
+        return None
+    try:
+        return json.loads(raw.decode("utf-8"))
+    except Exception:
+        return None
 
 def shorten_url():
-    # increment counter and convert to base62
     global url_counter
-    url_counter += 1
-
     num = url_counter
+    url_counter += 1
     if num == 0:
         return BASE62_CHARS[0]
 
