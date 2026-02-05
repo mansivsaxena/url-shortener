@@ -12,8 +12,7 @@ url-shortener/
 │   ├── routes.py      # API endpoints
 │   └── utils.py       # helper functions
 ├── run.py             # start the app 
-├── requirements.txt   # python dependencies
-└── tests/             # (empty) place tests here
+└── requirements.txt   # python dependencies
 ```
 
 Starting the server -
@@ -37,7 +36,7 @@ pip install -r requirements.txt
 python run.py
 ```
 
-The app will be available at http://127.0.0.1:5000
+The app will be available at http://127.0.0.1:8000
 
 API (summary)
 
