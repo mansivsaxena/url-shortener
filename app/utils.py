@@ -1,11 +1,18 @@
 import json
 import re
+import string
+import secrets
 
 from flask import request
 
-BASE62_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+BASE62_CHARS = string.ascii_letters + string.digits
+used_numbers = set()
 
-url_counter = 0
+def generate_random_number(bits=36):
+    '''
+    Using 2^36 because 2^36 = approx 62^6, so we get IDs of length 6
+    '''
+    return secrets.randbits(bits)
 
 # regex pattern to validate urls
 URL_PATTERN = re.compile(
@@ -45,9 +52,12 @@ def get_json_body():
         return None
 
 def shorten_url():
-    global url_counter
-    num = url_counter
-    url_counter += 1
+    while True:
+        num = generate_random_number()
+        if num not in used_numbers:
+            used_numbers.add(num)
+            break
+
     if num == 0:
         return BASE62_CHARS[0]
 

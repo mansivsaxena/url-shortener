@@ -11,7 +11,7 @@ def manage_urls():
         ids = list(short_urls.keys())
         return jsonify({"value": ids if ids else None}), 200
     
-    elif request.method == "POST": # shorten a url and insert in dict, json body with "url" field needed
+    elif request.method == "POST": # shorten a url and insert in dict, json body with "url"/"value" field needed
         req_body = get_json_body()
         long_url = extract_url(req_body)
         if not long_url:
@@ -37,11 +37,11 @@ def handle_url(id):
             resp.status_code = 301
             return resp
         else:
-            return "", 404 
+            return jsonify({"error": f"Short URL ID: {id} not found"}), 404 
         
     elif request.method == "PUT": # change the long url which maps to "id"
         if id not in short_urls:
-            return "", 404
+            return jsonify({"error": f"Short URL ID: {id} not found"}), 404
 
         req_body = get_json_body()
         new_url = extract_url(req_body)
@@ -52,12 +52,12 @@ def handle_url(id):
             return bad_request()
 
         short_urls[id] = new_url  
-        return "", 200
+        return jsonify({"message": f"URL for short ID {id} updated to {new_url} successfully"}), 200
     
     elif request.method == "DELETE": 
         if id in short_urls:
             del short_urls[id]
-            return "", 204
+            return jsonify({"message": ""}), 204 #204 doesnt allow any response body so empty message
         else:
-            return "", 404
+            return jsonify({"error": f"Short URL ID: {id} not found"}), 404
  
