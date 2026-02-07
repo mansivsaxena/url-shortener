@@ -7,9 +7,28 @@ short_urls = {}
 
 @main_bp.route("/", methods=["GET", "POST", "DELETE"])
 def manage_urls():
-    if request.method == "GET": # get all short url IDs
-        ids = list(short_urls.keys())
-        return jsonify({"value": ids if ids else None}), 200
+    if request.method == "GET": # get all short url IDs, with optional filtering and sorting
+        domain = request.args.get("domain")
+        contains = request.args.get("contains")
+        sort_by = request.args.get("sort")  # short/long
+
+        items = list(short_urls.items())
+
+        # filtering
+        if domain:
+            items = [(k, v) for k, v in items if domain in v]
+        if contains:
+            items = [(k, v) for k, v in items if contains in v]
+
+        # sorting
+        if sort_by == "short":
+            items.sort(key=lambda x: x[0])
+        elif sort_by == "long":
+            items.sort(key=lambda x: x[1])
+
+        result = {k: v for k, v in items}
+
+        return jsonify({"value": result if result else None}), 200
     
     elif request.method == "POST": # shorten a url and insert in dict, json body with "url"/"value" field needed
         req_body = get_json_body()
@@ -61,3 +80,30 @@ def handle_url(id):
         else:
             return jsonify({"error": f"Short URL ID: {id} not found"}), 404
  
+@main_bp.route("/bulk", methods=["POST"])
+def bulk_shorten():
+    req_body = get_json_body()
+
+    if not isinstance(req_body, dict):
+        return bad_request()
+
+    urls = req_body.get("values")
+    if not isinstance(urls, list) or not urls:
+        return bad_request()
+
+    success = {}
+    failed = []
+
+    for url in urls:
+        if not isinstance(url, str) or not url or not is_valid_url(url):
+            failed.append(url)
+            continue
+
+        short_id = shorten_url()
+        short_urls[short_id] = url
+        success[short_id] = url
+
+    return jsonify({
+        "success": success,
+        "failed": failed
+    }), 201
