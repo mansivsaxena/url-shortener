@@ -14,7 +14,7 @@ def generate_random_number(bits=36):
     '''
     return secrets.randbits(bits)
 
-# regex pattern to validate urls
+# regex pattern to validate urls with protocol
 URL_PATTERN = re.compile(
     r'^https?://'  # must start with http:// or https://
     r'(?:'
@@ -27,8 +27,36 @@ URL_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# regex pattern to validate partial urls without protocol
+PARTIAL_URL_PATTERN = re.compile(
+    r'^(?:www\.)?'  # optional www.
+    r'(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,}',  # domain name
+    re.IGNORECASE
+)
+
 def is_valid_url(url):
-    return URL_PATTERN.match(url) is not None
+    # check full url with protocol
+    if URL_PATTERN.match(url):
+        return True
+    
+    # also accept partial urls (www.google.com, google.com)
+    return PARTIAL_URL_PATTERN.match(url) is not None
+
+def is_valid_custom_id(custom_id):
+    if not custom_id:
+        return False
+    #do we need like reserved ids?
+    if len(custom_id) < 1 or len(custom_id) > 50:
+        return False
+    
+    if not (custom_id[0].isalnum() and custom_id[-1].isalnum()):
+        return False
+    
+    allowed = set('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_')
+    if not all(c in allowed for c in custom_id):
+        return False
+    
+    return True
 
 def bad_request():
     return "error", 400

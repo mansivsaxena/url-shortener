@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from app.utils import shorten_url, is_valid_url, bad_request, extract_url, get_json_body
+from app.utils import shorten_url, is_valid_url, bad_request, extract_url, get_json_body, is_valid_custom_id
 
 main_bp = Blueprint('main', __name__)
 
@@ -20,7 +20,24 @@ def manage_urls():
         if not is_valid_url(long_url):
             return bad_request()
 
-        short_id = shorten_url()
+        custom_id = req_body.get("custom_id") if req_body else None
+    
+        if custom_id:
+            custom_id = custom_id.strip().lower()
+            if not is_valid_custom_id(custom_id):
+                return jsonify({
+                    "error": "Invalid custom ID. Must be 1-50 alphanumeric characters (hyphens and underscores allowed, but not at start/end)"
+                }), 400
+            
+            if custom_id in short_urls:
+                return jsonify({
+                    "error": "Custom ID already exists. Please choose a different one."
+                }), 400
+            
+            short_id = custom_id
+        else:
+            short_id = shorten_url()
+
         short_urls[short_id] = long_url
         return jsonify({"id": short_id}), 201
     
