@@ -17,9 +17,9 @@ python test_1_marking_mk2.py
 MARK_EXIT=$?
 
 echo ""
-echo "=== Analytics tests ==="
-python test_2_analytics.py
-ANALYTICS_EXIT=$?
+echo "=== Bonus tests ==="
+python test_2_bonus.py
+BONUS_EXIT=$?
 
 echo ""
 echo "=== cURL Checklist ==="
@@ -70,8 +70,8 @@ curl -s -i -X POST http://127.0.0.1:8000/ \
   -d '{"value":"not-a-url"}'
 echo ""
 
-if [ "$MARK_EXIT" -ne 0 ] || [ "$ANALYTICS_EXIT" -ne 0 ]; then
-  echo "FAIL: marking=$MARK_EXIT analytics=$ANALYTICS_EXIT"
+if [ "$MARK_EXIT" -ne 0 ] || [ "$BONUS_EXIT" -ne 0 ]; then
+  echo "FAIL: marking=$MARK_EXIT bonus=$BONUS_EXIT"
   exit 1
 fi
 
