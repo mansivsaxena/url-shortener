@@ -1,9 +1,11 @@
+from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify
 from app.utils import shorten_url, is_valid_url, bad_request, extract_url, get_json_body
 
 main_bp = Blueprint("main", __name__)
 
 short_urls = {}
+analytics = {}
 
 @main_bp.route("/", methods=["GET", "POST", "DELETE"])
 def manage_urls():
@@ -20,10 +22,12 @@ def manage_urls():
 
         short_id = shorten_url()
         short_urls[short_id] = long_url
+        analytics[short_id] = {"click_count": 0, "last_accessed": None}
         return jsonify({"id": short_id}), 201
 
     elif request.method == "DELETE": # delete existing ids (404 as specified)
         short_urls.clear()
+        analytics.clear()
         return "", 404
 
 @main_bp.route("/<id>", methods=["GET", "PUT", "DELETE"])
@@ -33,8 +37,18 @@ def handle_url(id):
         if long_url is None:
             return jsonify({"error": f"Short URL ID: {id} not found"}), 404
 
-        # return resolved url in response body
-        resp = jsonify({"value": long_url})
+        # update analytics on successful resolution
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        entry = analytics.setdefault(id, {"click_count": 0, "last_accessed": None})
+        entry["click_count"] += 1
+        entry["last_accessed"] = now
+
+        # return resolved url in response body (extra fields allowed by tests)
+        resp = jsonify({
+            "value": long_url,
+            "clicks": entry["click_count"],
+            "last_accessed": entry["last_accessed"],
+        })
         resp.status_code = 301
         return resp
 
@@ -50,11 +64,13 @@ def handle_url(id):
             return bad_request()
 
         short_urls[id] = new_url
+        # analytics intentionally preserved on PUT (do not reset counters)
         return jsonify({"message": f"URL for short ID {id} updated successfully"}), 200
 
     elif request.method == "DELETE": # delete mapping for an existing short id
         if id in short_urls:
             del short_urls[id]
+            analytics.pop(id, None)
             return "", 204
 
         return jsonify({"error": f"Short URL ID: {id} not found"}), 404
