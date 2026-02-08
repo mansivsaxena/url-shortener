@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify
 from app.utils import shorten_url, is_valid_url, bad_request, extract_url, get_json_body, is_valid_custom_id, parse_expiration, expiration_check
 
@@ -97,9 +98,12 @@ def handle_url(id):
     if request.method == "GET":
         long_url = short_urls.get(id)
         if long_url:
-            resp = jsonify({"value": long_url})
-            resp.status_code = 301
-            return resp
+            analytics[id]["click_count"] += 1
+            analytics[id]["last_accessed"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            return jsonify({
+                "value": long_url,
+                "analytics": analytics[id]
+            }), 301
         else:
             return jsonify({"error": f"Short URL ID: {id} not found"}), 404 
         
@@ -119,6 +123,8 @@ def handle_url(id):
     elif request.method == "DELETE": 
         if id in short_urls:
             del short_urls[id]
+            analytics.pop(id, None)
+            expirations.pop(id, None)
             # 204 doesnt allow any response body so empty message
             return jsonify({"message": ""}), 204 
         else:
@@ -149,6 +155,7 @@ def bulk_shorten():
 
         short_id = shorten_url()
         short_urls[short_id] = url
+        analytics[short_id] = {"click_count": 0, "last_accessed": None}
         success[short_id] = url
 
     return jsonify({
