@@ -7,10 +7,15 @@ short_urls = {}
 
 @main_bp.route("/", methods=["GET", "POST", "DELETE"])
 def manage_urls():
-    if request.method == "GET": # get all short url IDs, with optional filtering and sorting
+    """
+        GET: Get all short URL IDs with optional filtering by domain or substring, and sorting by short ID/long URL
+        POST: Shorten a new URL provided in the JSON body and return the generated ID
+        DELETE: Clear all stored URL entries
+    """
+    if request.method == "GET":
         domain = request.args.get("domain")
         contains = request.args.get("contains")
-        sort_by = request.args.get("sort")  # short/long
+        sort_by = request.args.get("sort")  # can be "short"/"long"
 
         items = list(short_urls.items())
 
@@ -30,7 +35,7 @@ def manage_urls():
 
         return jsonify({"value": result if result else None}), 200
     
-    elif request.method == "POST": # shorten a url and insert in dict, json body with "url"/"value" field needed
+    elif request.method == "POST":
         req_body = get_json_body()
         long_url = extract_url(req_body)
         if not long_url:
@@ -49,7 +54,13 @@ def manage_urls():
 
 @main_bp.route("/<id>", methods=["GET", "PUT", "DELETE"])
 def handle_url(id):
-    if request.method == "GET": #redirect to the url which maps to "id"
+    """
+    :param id: the short URL ID to retrieve, update, or delete
+     GET: Redirect to the long URL mapped to the short ID
+     PUT: Update the long URL for the given short ID with a new URL provided
+     DELETE: Remove the short URL entry for the given ID
+    """
+    if request.method == "GET":
         long_url = short_urls.get(id)
         if long_url:
             resp = jsonify({"value": long_url})
@@ -58,7 +69,7 @@ def handle_url(id):
         else:
             return jsonify({"error": f"Short URL ID: {id} not found"}), 404 
         
-    elif request.method == "PUT": # change the long url which maps to "id"
+    elif request.method == "PUT":
         if id not in short_urls:
             return jsonify({"error": f"Short URL ID: {id} not found"}), 404
 
@@ -76,12 +87,15 @@ def handle_url(id):
     elif request.method == "DELETE": 
         if id in short_urls:
             del short_urls[id]
-            return jsonify({"message": ""}), 204 #204 doesnt allow any response body so empty message
+            return jsonify({"message": ""}), 204 # 204 doesnt allow any response body so empty message
         else:
             return jsonify({"error": f"Short URL ID: {id} not found"}), 404
  
 @main_bp.route("/bulk", methods=["POST"])
 def bulk_shorten():
+    """
+    POST: Shorten multiple URLs provided in the request body and return a mapping of generated IDs to original URLs, and show any failed entries
+    """
     req_body = get_json_body()
 
     if not isinstance(req_body, dict):
