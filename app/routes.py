@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify
-from app.utils import shorten_url, is_valid_url, bad_request, extract_url, get_json_body, parse_expiration, is_expired
+from app.utils import shorten_url, is_valid_url, bad_request, extract_url, get_json_body, parse_expiration, expiration_check
 
 main_bp = Blueprint("main", __name__)
 
@@ -10,6 +10,7 @@ expirations = {}
 
 @main_bp.route("/", methods=["GET", "POST", "DELETE"])
 def manage_urls():
+    expiration_check(short_urls, analytics, expirations)
     if request.method == "GET": # get all existing short ids
         ids = list(short_urls.keys())
         return jsonify({"value": ids if ids else None}), 200
@@ -41,8 +42,8 @@ def manage_urls():
 
 @main_bp.route("/<id>", methods=["GET", "PUT", "DELETE"])
 def handle_url(id):
+    expiration_check(short_urls, analytics, expirations)
     if request.method == "GET": # resolve a short id to its original url
-        is_expired(id, short_urls, analytics, expirations)
         long_url = short_urls.get(id)
         if long_url is None:
             return jsonify({"error": f"Short URL ID: {id} not found"}), 404
@@ -63,7 +64,6 @@ def handle_url(id):
         return resp
 
     elif request.method == "PUT": # update mapping for existing short id
-        is_expired(id, short_urls, analytics, expirations)
         if id not in short_urls:
             return jsonify({"error": f"Short URL ID: {id} not found"}), 404
 
@@ -79,7 +79,6 @@ def handle_url(id):
         return jsonify({"message": f"URL for short ID {id} updated successfully"}), 200
 
     elif request.method == "DELETE": # delete mapping for an existing short id
-        is_expired(id, short_urls, analytics, expirations)
         if id in short_urls:
             del short_urls[id]
             analytics.pop(id, None)

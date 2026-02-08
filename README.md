@@ -2,7 +2,7 @@
 
 ## Group 9 - Assignment 1 URL Shortener
 
-Directories
+### Directories
 
 ```
 url-shortener/
@@ -13,12 +13,12 @@ url-shortener/
 │   └── utils.py           # helper functions
 ├── run.py                 # start app 
 ├── test_1_marking_mk2.py  # mandatory tests
-├── test_2_bonus.py  # additional bonus tests
+├── test_2_bonus.py        # additional bonus tests
 ├── read_from.csv          # test data
 └── requirements.txt       # python dependencies
 ```
 
-Starting the server -
+### Starting Server
 
 1. Create and activate a virtual environment:
 
@@ -48,7 +48,7 @@ source .venv/bin/activate
 python test_1_marking_mk2.py
 ```
 
-## API (summary)
+## API Summary
 
 - GET `/` — list all short IDs 
 - POST `/` — create a short URL (`{"value": "<url>"}`)

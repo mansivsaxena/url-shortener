@@ -1,6 +1,6 @@
 import json
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from flask import request
 
@@ -59,25 +59,17 @@ def parse_expiration(body):
         except (ValueError, TypeError):
             raise ValueError("Invalid expires_at format; expected ISO-8601")
 
-    if "ttl_seconds" in body:
-        try:
-            ttl = int(body["ttl_seconds"])
-            if ttl <= 0:
-                raise ValueError("ttl_seconds must be a positive integer")
-            return datetime.now(timezone.utc) + timedelta(seconds=ttl)
-        except (ValueError, TypeError):
-            raise ValueError("Invalid ttl_seconds; expected a positive integer")
-
-def is_expired(short_id, short_urls, analytics, expirations):
-    exp = expirations.get(short_id)
-    if exp is None:
-        return False
-    if datetime.now(timezone.utc) >= exp:
+def expiration_check(short_urls, analytics, expirations):
+    now = datetime.now(timezone.utc)
+    expired_ids = [
+        short_id for short_id, exp in expirations.items()
+        if exp is not None and now >= exp
+    ]
+    for short_id in expired_ids:
         short_urls.pop(short_id, None)
         analytics.pop(short_id, None)
         expirations.pop(short_id, None)
-        return True
-    return False
+    return expired_ids
 
 def shorten_url():
     global url_counter

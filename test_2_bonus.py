@@ -1,11 +1,11 @@
 import re
-import time
 import unittest
 import requests
 
 URL = "http://127.0.0.1:8000"
 
-
+# mimicking the test cases from test_1_marking.py
+# but for bonus features specifically
 class TestBonus(unittest.TestCase):
 
     def _post(self, body):
@@ -40,12 +40,6 @@ class TestBonus(unittest.TestCase):
         sid = self._post({"value": "https://example.com"}).json()["id"]
         self._get(sid)
         requests.delete(f"{URL}/{sid}")
-        self.assertEqual(self._get(sid).status_code, 404)
-
-    def test_ttl_alive_then_expires(self):
-        sid = self._post({"value": "https://example.com", "ttl_seconds": 3}).json()["id"]
-        self.assertEqual(self._get(sid).status_code, 301)
-        time.sleep(4)
         self.assertEqual(self._get(sid).status_code, 404)
 
     def test_expires_at_in_past_is_dead(self):
