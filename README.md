@@ -55,3 +55,12 @@ python test_1_marking_mk2.py
 - GET `/<id>` — redirect (301) to the original URL
 - PUT `/<id>` — update mapping (`{"value": "<new_url>"}`)
 - DELETE `/<id>` — delete mapping
+
+## Bonus features
+- Sorting and Filtering: GET `/` with `sort_by=short` or `sort_by=long` to sort by short ID or original URL, and `contains=<substring>` to filter short URLs that contain a specific substring in the original URL
+- Expiration: POST `/` with `{"value": "<url>", "expires_at": <timestamp>}` to set an expiration time for the short URL
+- Analytics: Tracks the number of times the short URL has been accessed and the timestamps of latest access
+- Custom short IDs: POST `/` with `{"value": "<url>", "custom_id": "<custom_id>"}` to specify a custom short ID (unique and alphanumeric)
+- Bulk URL shortening: POST `/bulk` with `{"values": ["<url1>", "<url2>", ...]}` to create short URLs for multiple URLs in a single request
+
+Run `python test_2_bonus.py` to test the bonus features.
