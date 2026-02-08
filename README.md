@@ -12,7 +12,8 @@ url-shortener/
 │   ├── routes.py          # API endpoints
 │   └── utils.py           # helper functions
 ├── run.py                 # start app 
-├── test_1_marking_mk2.py  # unit tests
+├── test_1_marking_mk2.py  # mandatory tests
+├── test_2_bonus.py  # additional bonus tests
 ├── read_from.csv          # test data
 └── requirements.txt       # python dependencies
 ```
