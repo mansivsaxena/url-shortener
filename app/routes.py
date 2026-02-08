@@ -55,10 +55,10 @@ def manage_urls():
 @main_bp.route("/<id>", methods=["GET", "PUT", "DELETE"])
 def handle_url(id):
     """
-    :param id: the short URL ID to retrieve, update, or delete
-     GET: Redirect to the long URL mapped to the short ID
-     PUT: Update the long URL for the given short ID with a new URL provided
-     DELETE: Remove the short URL entry for the given ID
+        :param id: the short URL ID to retrieve, update, or delete
+        GET: Redirect to the long URL mapped to the short ID
+        PUT: Update the long URL for the given short ID with a new URL provided
+        DELETE: Remove the short URL entry for the given ID
     """
     if request.method == "GET":
         long_url = short_urls.get(id)
@@ -94,7 +94,7 @@ def handle_url(id):
 @main_bp.route("/bulk", methods=["POST"])
 def bulk_shorten():
     """
-    POST: Shorten multiple URLs provided in the request body and return a mapping of generated IDs to original URLs, and show any failed entries
+        POST: Shorten multiple URLs provided in the request body and return a mapping of generated IDs to original URLs, and show any failed entries
     """
     req_body = get_json_body()
 
