@@ -1,21 +1,29 @@
 from flask import Blueprint, request, jsonify
-from app.utils import shorten_url, is_valid_url, bad_request, extract_url, get_json_body, is_valid_custom_id
+from app.utils import shorten_url, is_valid_url, bad_request, extract_url, get_json_body, is_valid_custom_id, parse_expiration, expiration_check
 
-main_bp = Blueprint('main', __name__)
+main_bp = Blueprint("main", __name__)
 
 short_urls = {}
+analytics = {}
+expirations = {}
 
 @main_bp.route("/", methods=["GET", "POST", "DELETE"])
 def manage_urls():
     """
         GET: Get all short URL IDs with optional filtering by domain or substring, and sorting by short ID/long URL
-        POST: Shorten a new URL provided in the JSON body and return the generated ID
+        POST: Shorten a new URL provided in the JSON body (if valid URL format) and return the generated ID
         DELETE: Clear all stored URL entries
+        Bonus:
+            - Support custom short IDs
+            - URL expiration times in POST body
+            - Expiration check before all endpoints to remove expired URLs
+            - Analytics for each short URL (click count, last accessed time)
     """
+    expiration_check(short_urls, analytics, expirations)
     if request.method == "GET":
         domain = request.args.get("domain")
         contains = request.args.get("contains")
-        sort_by = request.args.get("sort")  # can be "short"/"long"
+        sort_by = request.args.get("sort")  # has to be either "short"/"long"
 
         items = list(short_urls.items())
 
@@ -38,10 +46,13 @@ def manage_urls():
     elif request.method == "POST":
         req_body = get_json_body()
         long_url = extract_url(req_body)
-        if not long_url:
+
+        if not long_url or not is_valid_url(long_url):
             return bad_request()
 
-        if not is_valid_url(long_url):
+        try: # expiration
+            exp_dt = parse_expiration(req_body)
+        except ValueError:
             return bad_request()
 
         custom_id = req_body.get("custom_id") if req_body else None
@@ -63,10 +74,15 @@ def manage_urls():
             short_id = shorten_url()
 
         short_urls[short_id] = long_url
+        analytics[short_id] = {"click_count": 0, "last_accessed": None}
+        if exp_dt is not None:
+            expirations[short_id] = exp_dt
         return jsonify({"id": short_id}), 201
-    
-    elif request.method == "DELETE": 
+
+    elif request.method == "DELETE":
         short_urls.clear()
+        analytics.clear()
+        expirations.clear()
         return "", 404
 
 @main_bp.route("/<id>", methods=["GET", "PUT", "DELETE"])
@@ -77,6 +93,7 @@ def handle_url(id):
         PUT: Update the long URL for the given short ID with a new URL provided
         DELETE: Remove the short URL entry for the given ID
     """
+    expiration_check(short_urls, analytics, expirations)
     if request.method == "GET":
         long_url = short_urls.get(id)
         if long_url:
@@ -86,25 +103,24 @@ def handle_url(id):
         else:
             return jsonify({"error": f"Short URL ID: {id} not found"}), 404 
         
-    elif request.method == "PUT":
+    elif request.method == "PUT": 
         if id not in short_urls:
             return jsonify({"error": f"Short URL ID: {id} not found"}), 404
 
         req_body = get_json_body()
         new_url = extract_url(req_body)
-        if not new_url:
+
+        if not new_url or not is_valid_url(new_url):
             return bad_request()
 
-        if not is_valid_url(new_url):
-            return bad_request()
+        short_urls[id] = new_url
+        return jsonify({"message": f"URL for short ID {id} updated successfully"}), 200
 
-        short_urls[id] = new_url  
-        return jsonify({"message": f"URL for short ID {id} updated to {new_url} successfully"}), 200
-    
     elif request.method == "DELETE": 
         if id in short_urls:
             del short_urls[id]
-            return jsonify({"message": ""}), 204 # 204 doesnt allow any response body so empty message
+            # 204 doesnt allow any response body so empty message
+            return jsonify({"message": ""}), 204 
         else:
             return jsonify({"error": f"Short URL ID: {id} not found"}), 404
  
@@ -113,6 +129,7 @@ def bulk_shorten():
     """
         POST: Shorten multiple URLs provided in the request body and return a mapping of generated IDs to original URLs, and show any failed entries
     """
+    expiration_check(short_urls, analytics, expirations)
     req_body = get_json_body()
 
     if not isinstance(req_body, dict):
