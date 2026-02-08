@@ -76,7 +76,7 @@ class TestBonusFeatures(unittest.TestCase):
         requests.post(f"{self.base_url}/", json={"value": "https://a.com"})
         requests.post(f"{self.base_url}/", json={"value": "https://b.com"})
         requests.post(f"{self.base_url}/", json={"value": "https://c.com"})
-        resp = requests.get(f"{self.base_url}/", params={"sort": "short"})
+        resp = requests.get(f"{self.base_url}/", params={"sort_by": "short"})
         keys = list(resp.json()["value"].keys())
         self.assertEqual(keys, sorted(keys))
 

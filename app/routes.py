@@ -24,7 +24,7 @@ def manage_urls():
     expiration_check(short_urls, analytics, expirations)
     if request.method == "GET":
         contains = request.args.get("contains")
-        sort_by = request.args.get("sort")  # has to be either "short"/"long"
+        sort_by = request.args.get("sort_by")  # has to be either "short"/"long"
 
         items = list(short_urls.items())
 
