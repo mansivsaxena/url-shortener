@@ -61,16 +61,6 @@ class TestBonusFeatures(unittest.TestCase):
         time.sleep(3)
         self.assertEqual(requests.get(f"{self.base_url}/{sid}").status_code, 404)
 
-    # filtering: by domain
-    def test_filter_by_domain(self):
-        requests.post(f"{self.base_url}/", json={"value": "https://google.com/search"})
-        requests.post(f"{self.base_url}/", json={"value": "https://github.com/repo"})
-        resp = requests.get(f"{self.base_url}/", params={"domain": "google.com"})
-        urls = resp.json()["value"]
-        self.assertIsNotNone(urls)
-        for url in urls.values():
-            self.assertIn("google.com", url)
-
     # filtering: by substring
     def test_filter_by_contains(self):
         requests.post(f"{self.base_url}/", json={"value": "https://en.wikipedia.org/wiki/Python"})

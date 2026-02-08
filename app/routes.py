@@ -38,7 +38,7 @@ def manage_urls():
         elif sort_by == "long":
             items.sort(key=lambda x: x[1])
 
-        return jsonify(OrderedDict(items)), 200
+        return jsonify({"value": OrderedDict(items)}), 200
     
     elif request.method == "POST":
         req_body = get_json_body()
