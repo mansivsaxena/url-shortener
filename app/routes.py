@@ -122,7 +122,7 @@ def handle_url(id):
             analytics.pop(id, None)
             expirations.pop(id, None)
             # 204 doesnt allow any response body so empty message
-            return jsonify({"message": ""}), 204 
+            return "", 204
         else:
             return jsonify({"error": f"Short URL ID: {id} not found"}), 404
  
