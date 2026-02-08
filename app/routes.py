@@ -56,19 +56,21 @@ def manage_urls():
     
         if custom_id:
             custom_id = custom_id.strip().lower()
-            if not is_valid_custom_id(custom_id):
-                return jsonify({
-                    "error": "Invalid custom ID. Must be 1-50 alphanumeric characters (hyphens and underscores allowed, but not at start/end)"
-                }), 400
-            
             if custom_id in short_urls:
                 return jsonify({
                     "error": "ID already exists. Please choose a different one."
                 }), 400
             
+            if not is_valid_custom_id(custom_id):
+                return jsonify({
+                    "error": "Invalid custom ID. Must be 1-50 alphanumeric characters (hyphens and underscores allowed, but not at start/end)"
+                }), 400
+            
             short_id = custom_id
         else:
             short_id = shorten_url()
+            while short_id in short_urls:     
+                short_id = shorten_url()
 
         short_urls[short_id] = long_url
         analytics[short_id] = {"click_count": 0, "last_accessed": None}

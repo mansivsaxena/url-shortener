@@ -8,23 +8,32 @@ BASE62_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 url_counter = 0
 
-# regex pattern to validate urls with protocol
 URL_PATTERN = re.compile(
-    r'^https?://' # must start with http:// or https://
-    r'(?:'
-        r'(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,}\.?|' # domain name
-        r'localhost|' # or localhost
-        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}' # or ip address
+    r'^https?://'                                  
+    r'(?:'                                        
+        r'(?:'                                     
+            r'[A-Z0-9]'                             # domain
+            r'(?:[A-Z0-9-]{0,61}[A-Z0-9])?'         
+            r'\.'                                   
+        r')+'                                       # subdomains allowed
+        r'[A-Z]{2,}\.?'                             # TLD 
+        r'|localhost'                               # or localhost
+        r'|\d{1,3}(?:\.\d{1,3}){3}'                 # or IPv4 
     r')'
-    r'(?::\d+)?' # optional port number
-    r'(?:/?|[/?]\S+)?$', # optional path
-    re.IGNORECASE,
+    r'(?::\d+)?'                                   # optional ':port'
+    r'(?:[/?]\S*)?$',                              # optional path/query
+    re.IGNORECASE
 )
 
-# regex pattern to validate partial urls without protocol
+# without protocol
 PARTIAL_URL_PATTERN = re.compile(
-    r'^(?:www\.)?'  # optional www.
-    r'(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,}',  # domain name
+    r'^(?:www\.)?'                                 
+    r'(?:'                                         # domain 
+        r'[A-Z0-9]'
+        r'(?:[A-Z0-9-]{0,61}[A-Z0-9])?'
+        r'\.'
+    r')+'
+    r'[A-Z]{2,}\.?$',                              # TLD 
     re.IGNORECASE
 )
 
@@ -32,7 +41,7 @@ def is_valid_url(url):
     if URL_PATTERN.match(url):
         return True
     
-    # accept partial urls (www.google.com, google.com)
+    # accept partial urls 
     return PARTIAL_URL_PATTERN.match(url) is not None
 
 def bad_request():
