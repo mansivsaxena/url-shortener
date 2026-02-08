@@ -1,8 +1,11 @@
 from flask import Flask
 from app.config import Config
+from flask.json.provider import DefaultJSONProvider
 
 def create_app():
     app = Flask(__name__)
+    app.json_provider_class = DefaultJSONProvider
+    app.json_provider_class.sort_keys = False
     app.config.from_object(Config)
     
     from app.routes import main_bp

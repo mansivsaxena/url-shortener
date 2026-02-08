@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify
 from app.utils import shorten_url, is_valid_url, bad_request, extract_url, get_json_body, is_valid_custom_id, parse_expiration, expiration_check
@@ -11,7 +12,7 @@ expirations = {}
 @main_bp.route("/", methods=["GET", "POST", "DELETE"])
 def manage_urls():
     """
-        GET: Get all short URL IDs with optional filtering by domain or substring, and sorting by short ID/long URL
+        GET: Get all short URL IDs with optional filtering by a substring, and sorting by short ID/long URL
         POST: Shorten a new URL provided in the JSON body (if valid URL format) and return the generated ID
         DELETE: Clear all stored URL entries
         Bonus:
@@ -22,15 +23,12 @@ def manage_urls():
     """
     expiration_check(short_urls, analytics, expirations)
     if request.method == "GET":
-        domain = request.args.get("domain")
         contains = request.args.get("contains")
         sort_by = request.args.get("sort")  # has to be either "short"/"long"
 
         items = list(short_urls.items())
 
         # filtering
-        if domain:
-            items = [(k, v) for k, v in items if domain in v]
         if contains:
             items = [(k, v) for k, v in items if contains in v]
 
@@ -40,9 +38,7 @@ def manage_urls():
         elif sort_by == "long":
             items.sort(key=lambda x: x[1])
 
-        result = {k: v for k, v in items}
-
-        return jsonify({"value": result if result else None}), 200
+        return jsonify(OrderedDict(items)), 200
     
     elif request.method == "POST":
         req_body = get_json_body()
@@ -67,7 +63,7 @@ def manage_urls():
             
             if custom_id in short_urls:
                 return jsonify({
-                    "error": "Custom ID already exists. Please choose a different one."
+                    "error": "ID already exists. Please choose a different one."
                 }), 400
             
             short_id = custom_id
