@@ -1,7 +1,7 @@
 from collections import OrderedDict
 from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify
-from app.utils import shorten_url, is_valid_url, bad_request, extract_url, get_json_body, is_valid_custom_id, parse_expiration, expiration_check
+from url_shortener_service.utils import shorten_url, is_valid_url, bad_request, extract_url, get_json_body, is_valid_custom_id, parse_expiration, expiration_check
 
 main_bp = Blueprint("main", __name__)
 
