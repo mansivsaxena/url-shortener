@@ -1,5 +1,4 @@
 Flask
 requests
 pytest
-PyJWT
 werkzeug
