@@ -51,6 +51,7 @@ def _base64url_decode(s: str) -> bytes:
     padding = "=" * (-len(s) % 4)
     return base64.urlsafe_b64decode(s + padding)
 
+# todo - provide sources for hashing alg used and hmac 
 def generate_jwt_token(username, secret_key, exp_seconds: int = 3600):
     """
         Creating JWT (header.payload.signature) using HMAC-SHA256
