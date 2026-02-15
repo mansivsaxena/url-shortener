@@ -1,11 +1,14 @@
 from flask import Blueprint, current_app, jsonify
+import hmac
 from auth_service.utils import (
+    generate_jwt_token,
     get_json_body,
     now_utc,
     generate_salt,
     hash_password,
     verify_password,
-    generate_jwt_token,
+    extract_jwt_from_request,
+    verify_jwt_token,
 )
 
 auth_bp = Blueprint("auth", __name__)
@@ -35,6 +38,7 @@ def create_user():
         "pw_hash": pw_hash,
         "created_at": t,
         "updated_at": t,
+        "token": None,
     }
     return "", 201
 
@@ -64,8 +68,9 @@ def update_user():
     user["pw_hash"] = hash_password(new_pw, new_salt)
     user["updated_at"] = now_utc()
 
+    # todo - what do we do with the existing jwt token when the password changes?
+    
     return "", 200
-
 
 @auth_bp.route("/users/login", methods=["POST"])
 def login_user():
@@ -85,6 +90,20 @@ def login_user():
     if not verify_password(user["pw_hash"], password, user["salt"]):
         return "forbidden", 403
 
-    #todo: jwt tings
-    token = generate_jwt_token(username, current_app.config["JWT_SECRET_KEY"])
-    return jsonify({"token": token}), 200
+    # verify token provided matches stored token
+    provided_token = extract_jwt_from_request()
+    if provided_token:
+        payload = verify_jwt_token(provided_token, current_app.config["JWT_SECRET_KEY"])
+        if not payload:
+            return "forbidden", 403
+        if payload.get("username") != username:
+            return "forbidden", 403
+        stored = user.get("token")
+        if not stored or not hmac.compare_digest(stored, provided_token):
+            return "forbidden", 403
+        return jsonify({"token": provided_token}), 200
+    else:
+        # create new token
+        token = generate_jwt_token(username, current_app.config["JWT_SECRET_KEY"])
+        user["token"] = token
+        return jsonify({"token": token}), 200
