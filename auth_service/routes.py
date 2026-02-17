@@ -67,8 +67,8 @@ def update_user():
     user["salt"] = new_salt
     user["pw_hash"] = hash_password(new_pw, new_salt)
     user["updated_at"] = now_utc()
-
-    # todo - what do we do with the existing jwt token when the password changes?
+    # Invalidate the current token; the user must log in again.
+    user["token"] = None
     
     return "", 200
 
@@ -107,3 +107,28 @@ def login_user():
         token = generate_jwt_token(username, current_app.config["JWT_SECRET_KEY"])
         user["token"] = token
         return jsonify({"token": token}), 200
+
+
+@auth_bp.route("/users/validate", methods=["GET"])
+def validate_user_token():
+    token = extract_jwt_from_request()
+    if not token:
+        return "forbidden", 403
+
+    payload = verify_jwt_token(token, current_app.config["JWT_SECRET_KEY"])
+    if not payload:
+        return "forbidden", 403
+
+    username = payload.get("username")
+    if not isinstance(username, str) or not username:
+        return "forbidden", 403
+
+    user = users.get(username)
+    if not user:
+        return "forbidden", 403
+
+    stored = user.get("token")
+    if not stored or not hmac.compare_digest(stored, token):
+        return "forbidden", 403
+
+    return jsonify({"username": username}), 200
