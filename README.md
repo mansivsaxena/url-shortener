@@ -1,24 +1,37 @@
 # UvA - Web Services and Cloud-Based Systems
 
-## Group 9 - Assignment 1 URL Shortener
+## Group 9 - Assignment 2 (URL Shortener + Auth Microservice)
 
-Directories
+This repository contains two REST services:
+- `auth_service` on `127.0.0.1:8001` for users, login, JWT issuing, and JWT validation.
+- `url_shortener_service` on `127.0.0.1:8000` for URL management with per-user ownership.
 
-```
+The URL shortener does not know the JWT secret. It validates tokens by calling the auth service endpoint `GET /users/validate`.
+
+## Directories
+
+```text
 url-shortener/
-├── app/
-│   ├── __init__.py    
-│   ├── config.py          # config
-│   ├── routes.py          # API endpoints
-│   └── utils.py           # helper functions
-├── run.py                 # start app 
-├── test_1_marking_mk2.py  # mandatory tests
-├── test_2_bonus.py  # additional bonus tests
-├── read_from.csv          # test data
-└── requirements.txt       # python dependencies
+├── auth_service/
+│   ├── __init__.py
+│   ├── routes.py
+│   └── utils.py
+├── url_shortener_service/
+│   ├── __init__.py
+│   ├── auth_client.py
+│   ├── config.py
+│   ├── routes.py
+│   └── utils.py
+├── auth_service_run.py
+├── url_shortener_service_run.py
+├── test_app.py
+├── test_1_marking_mk2.py
+├── test_2_bonus.py
+├── read_from.csv
+└── requirements.txt
 ```
 
-Starting the server -
+## Setup
 
 1. Create and activate a virtual environment:
 
@@ -33,34 +46,53 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-3. Run the app:
+## Starting The Services
 
-```bash
-python run.py
-```
-
-The app will be available at http://127.0.0.1:8000
-
-4. In another terminal, run the unit tests:
+Terminal 1:
 
 ```bash
 source .venv/bin/activate
+python auth_service_run.py
+```
+
+Terminal 2:
+
+```bash
+source .venv/bin/activate
+python url_shortener_service_run.py
+```
+
+## API Summary
+
+Auth service:
+- `POST /users`
+- `PUT /users`
+- `POST /users/login`
+- `GET /users/validate`
+
+URL shortener service:
+- `GET /` (auth required)
+- `POST /` (auth required)
+- `DELETE /` (auth required, deletes current user's mappings)
+- `GET /<id>` (public redirect endpoint)
+- `PUT /<id>` (auth required, owner-only)
+- `DELETE /<id>` (auth required, owner-only)
+- `POST /bulk` (auth required)
+
+## Testing
+
+Legacy Assignment 1 tests (reference only):
+
+```bash
 python test_1_marking_mk2.py
 ```
 
-## API (summary)
+These tests send unauthenticated management requests, so they are not expected to pass in the Assignment 2 version.
 
-- GET `/` — list all short IDs 
-- POST `/` — create a short URL (`{"value": "<url>"}`)
-- GET `/<id>` — redirect (301) to the original URL
-- PUT `/<id>` — update mapping (`{"value": "<new_url>"}`)
-- DELETE `/<id>` — delete mapping
+Assignment 2 tests:
 
-## Bonus features
-- Sorting and Filtering: GET `/` with `sort_by=short` or `sort_by=long` to sort by short ID or original URL, and `contains=<substring>` to filter short URLs that contain a specific substring in the original URL
-- Expiration: POST `/` with `{"value": "<url>", "expires_at": <timestamp>}` to set an expiration time for the short URL
-- Analytics: Tracks the number of times the short URL has been accessed and the timestamps of latest access
-- Custom short IDs: POST `/` with `{"value": "<url>", "custom_id": "<custom_id>"}` to specify a custom short ID (unique and alphanumeric)
-- Bulk URL shortening: POST `/bulk` with `{"values": ["<url1>", "<url2>", ...]}` to create short URLs for multiple URLs in a single request
+```bash
+python test_app.py
+```
 
-Run `python test_2_bonus.py` to test the bonus features.
+Note: The provided `test_2_bonus.py` file is from Assignment 1 and sends unauthenticated requests. In Assignment 2, management endpoints require Authorization.
