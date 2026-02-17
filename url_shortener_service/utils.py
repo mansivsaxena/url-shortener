@@ -3,6 +3,7 @@ import re
 from datetime import datetime, timezone
 
 from flask import request
+from url_shortener_service.auth_client import validate_request_token
 
 BASE62_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
@@ -121,3 +122,16 @@ def expiration_check(short_urls, analytics, expirations):
         analytics.pop(short_id, None)
         expirations.pop(short_id, None)
     return expired_ids
+
+
+def cleanup_expired_urls(short_urls, analytics, expirations, owners):
+    expired_ids = expiration_check(short_urls, analytics, expirations)
+    for short_id in expired_ids:
+        owners.pop(short_id, None)
+
+
+def require_auth_or_403(req):
+    is_valid, username = validate_request_token(req)
+    if not is_valid:
+        return None, ("forbidden", 403)
+    return username, None

@@ -1,13 +1,24 @@
 from collections import OrderedDict
 from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify
-from url_shortener_service.utils import shorten_url, is_valid_url, bad_request, extract_url, get_json_body, is_valid_custom_id, parse_expiration, expiration_check
+from url_shortener_service.utils import (
+    shorten_url,
+    is_valid_url,
+    bad_request,
+    extract_url,
+    get_json_body,
+    is_valid_custom_id,
+    parse_expiration,
+    cleanup_expired_urls,
+    require_auth_or_403,
+)
 
 main_bp = Blueprint("main", __name__)
 
 short_urls = {}
 analytics = {}
 expirations = {}
+owners = {}
 
 @main_bp.route("/", methods=["GET", "POST", "DELETE"])
 def manage_urls():
@@ -21,12 +32,17 @@ def manage_urls():
             - Expiration check before all endpoints to remove expired URLs
             - Analytics for each short URL (click count, last accessed time)
     """
-    expiration_check(short_urls, analytics, expirations)
+    username, auth_error = require_auth_or_403(request)
+    if auth_error:
+        return auth_error
+
+    cleanup_expired_urls(short_urls, analytics, expirations, owners)
+
     if request.method == "GET":
         contains = request.args.get("contains")
         sort_by = request.args.get("sort_by")  # has to be either "short"/"long"
 
-        items = list(short_urls.items())
+        items = [(short_id, url) for short_id, url in short_urls.items() if owners.get(short_id) == username]
 
         # filtering
         if contains:
@@ -74,14 +90,18 @@ def manage_urls():
 
         short_urls[short_id] = long_url
         analytics[short_id] = {"click_count": 0, "last_accessed": None}
+        owners[short_id] = username
         if exp_dt is not None:
             expirations[short_id] = exp_dt
         return jsonify({"id": short_id}), 201
 
     elif request.method == "DELETE":
-        short_urls.clear()
-        analytics.clear()
-        expirations.clear()
+        user_ids = [short_id for short_id, owner in owners.items() if owner == username]
+        for short_id in user_ids:
+            short_urls.pop(short_id, None)
+            analytics.pop(short_id, None)
+            expirations.pop(short_id, None)
+            owners.pop(short_id, None)
         return "", 404
 
 @main_bp.route("/<id>", methods=["GET", "PUT", "DELETE"])
@@ -92,8 +112,8 @@ def handle_url(id):
         PUT: Update the long URL for the given short ID with a new URL provided
         DELETE: Remove the short URL entry for the given ID
     """
-    expiration_check(short_urls, analytics, expirations)
     if request.method == "GET":
+        cleanup_expired_urls(short_urls, analytics, expirations, owners)
         long_url = short_urls.get(id)
         if long_url:
             analytics[id]["click_count"] += 1
@@ -104,10 +124,18 @@ def handle_url(id):
             }), 301
         else:
             return jsonify({"error": f"Short URL ID: {id} not found"}), 404 
-        
-    elif request.method == "PUT": 
+
+    username, auth_error = require_auth_or_403(request)
+    if auth_error:
+        return auth_error
+
+    cleanup_expired_urls(short_urls, analytics, expirations, owners)
+
+    if request.method == "PUT":
         if id not in short_urls:
             return jsonify({"error": f"Short URL ID: {id} not found"}), 404
+        if owners.get(id) != username:
+            return "forbidden", 403
 
         req_body = get_json_body()
         new_url = extract_url(req_body)
@@ -119,21 +147,29 @@ def handle_url(id):
         return jsonify({"message": f"URL for short ID {id} updated successfully"}), 200
 
     elif request.method == "DELETE": 
-        if id in short_urls:
-            del short_urls[id]
-            analytics.pop(id, None)
-            expirations.pop(id, None)
-            # 204 doesnt allow any response body so empty message
-            return "", 204
-        else:
+        if id not in short_urls:
             return jsonify({"error": f"Short URL ID: {id} not found"}), 404
+        if owners.get(id) != username:
+            return "forbidden", 403
+
+        del short_urls[id]
+        analytics.pop(id, None)
+        expirations.pop(id, None)
+        owners.pop(id, None)
+        # 204 doesnt allow any response body so empty message
+        return "", 204
  
 @main_bp.route("/bulk", methods=["POST"])
 def bulk_shorten():
     """
         POST: Shorten multiple URLs provided in the request body and return a mapping of generated IDs to original URLs, and show any failed entries
     """
-    expiration_check(short_urls, analytics, expirations)
+    username, auth_error = require_auth_or_403(request)
+    if auth_error:
+        return auth_error
+
+    cleanup_expired_urls(short_urls, analytics, expirations, owners)
+
     req_body = get_json_body()
 
     if not isinstance(req_body, dict):
@@ -152,8 +188,11 @@ def bulk_shorten():
             continue
 
         short_id = shorten_url()
+        while short_id in short_urls:
+            short_id = shorten_url()
         short_urls[short_id] = url
         analytics[short_id] = {"click_count": 0, "last_accessed": None}
+        owners[short_id] = username
         success[short_id] = url
 
     return jsonify({
