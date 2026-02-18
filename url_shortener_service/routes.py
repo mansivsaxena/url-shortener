@@ -31,6 +31,11 @@ def manage_urls():
             - URL expiration times in POST body
             - Expiration check before all endpoints to remove expired URLs
             - Analytics for each short URL (click count, last accessed time)
+
+        Assignment 2 addition: 
+            - Validate JWT token in Authorization header
+            - Verify token by calling auth_service API 
+            - Allow access to URLs owned by the user identified in the token payload
     """
     username, auth_error = require_auth_or_403(request)
     if auth_error:
@@ -111,6 +116,8 @@ def handle_url(id):
         GET: Redirect to the long URL mapped to the short ID
         PUT: Update the long URL for the given short ID with a new URL provided
         DELETE: Remove the short URL entry for the given ID
+
+        Assignment 2 addition: Authentication (described above)
     """
     if request.method == "GET":
         cleanup_expired_urls(short_urls, analytics, expirations, owners)
@@ -163,6 +170,7 @@ def handle_url(id):
 def bulk_shorten():
     """
         POST: Shorten multiple URLs provided in the request body and return a mapping of generated IDs to original URLs, and show any failed entries
+        Assignment 2 addition: Authentication (described above)
     """
     username, auth_error = require_auth_or_403(request)
     if auth_error:
