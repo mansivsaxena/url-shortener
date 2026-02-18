@@ -10,7 +10,7 @@ from url_shortener_service.utils import (
     is_valid_custom_id,
     parse_expiration,
     cleanup_expired_urls,
-    require_auth_or_403,
+    require_authenticated_user,
 )
 
 main_bp = Blueprint("main", __name__)
@@ -37,7 +37,7 @@ def manage_urls():
             - Verify token by calling auth_service API 
             - Allow access to URLs owned by the user identified in the token payload
     """
-    username, auth_error = require_auth_or_403(request)
+    username, auth_error = require_authenticated_user(request)
     if auth_error:
         return auth_error
 
@@ -132,7 +132,7 @@ def handle_url(id):
         else:
             return jsonify({"error": f"Short URL ID: {id} not found"}), 404 
 
-    username, auth_error = require_auth_or_403(request)
+    username, auth_error = require_authenticated_user(request)
     if auth_error:
         return auth_error
 
@@ -172,7 +172,7 @@ def bulk_shorten():
         POST: Shorten multiple URLs provided in the request body and return a mapping of generated IDs to original URLs, and show any failed entries
         Assignment 2 addition: Authentication (described above)
     """
-    username, auth_error = require_auth_or_403(request)
+    username, auth_error = require_authenticated_user(request)
     if auth_error:
         return auth_error
 

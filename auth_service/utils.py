@@ -61,7 +61,7 @@ def base64_decode(encoded_data):
 # reference for hashlib library usage:
 # [2] https://docs.python.org/3/library/hashlib.html#module-hashlib
 
-def generate_signature(key, message):
+def generate_signature(message, key):
     return hmac.new(key, message, hashlib.sha256).digest()
 
 def generate_jwt_token(username, secret_key, exp_seconds: int = 3600):

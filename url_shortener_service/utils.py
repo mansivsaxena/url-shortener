@@ -129,32 +129,27 @@ def cleanup_expired_urls(short_urls, analytics, expirations, owners):
 ###    ------ Utils for Assignment 2 ------
 ###
 
-def validate_request_token(req):
-    """
-    - Extract JWT token from request (Authorization header)
-    - Verify token and validate user by calling auth_service /users/validate API
-    - Return (is_valid, username) tuple
-    """
+def authenticate_request(req):
+    # extract token from auth header
     auth_header = (req.headers.get("Authorization") or "").strip()
     if not auth_header:
         return False, None
 
+    # send validation request to auth_service
     base_url = current_app.config.get("AUTH_SERVICE_URL").rstrip("/")
     validate_url = f"{base_url}/users/validate"
     timeout = float(current_app.config.get("AUTH_VALIDATE_TIMEOUT_SECONDS", 1.0))
+    response = requests.get(
+        validate_url,
+        headers={"Authorization": auth_header},
+        timeout=timeout,
+    )
 
-    try:
-        response = requests.get(
-            validate_url,
-            headers={"Authorization": auth_header},
-            timeout=timeout,
-        )
-    except requests.RequestException:
-        return False, None
-
+    # check for unsuccessful response from auth_service
     if response.status_code != 200:
         return False, None
 
+    # parse response and extract username
     try:
         payload = response.json()
     except ValueError:
@@ -166,8 +161,8 @@ def validate_request_token(req):
 
     return True, username
 
-def require_auth_or_403(req):
-    is_valid, username = validate_request_token(req)
+def require_authenticated_user(req):
+    is_valid, username = authenticate_request(req)
     if not is_valid:
         return None, ("forbidden", 403)
     return username, None
