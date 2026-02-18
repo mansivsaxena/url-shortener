@@ -109,9 +109,10 @@ def login_user():
         user["token"] = token
         return jsonify({"token": token}), 200
 
-
 @auth_bp.route("/users/validate", methods=["GET"])
 def validate_user_token():
+    # internal endpoint to validate token and return username in payload (if valid)
+    # used by url_shortener service to validate token in their requests
     token = extract_jwt_from_request()
     if not token:
         return "forbidden", 403
@@ -134,7 +135,7 @@ def logout_user():
     if not payload:
         return "forbidden", 403
 
-    username = payload.get("username")
+    username = payload.get("sub")
     users[username]["token"] = None
     users[username]["updated_at"] = now_utc()
 
