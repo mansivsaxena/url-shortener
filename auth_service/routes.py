@@ -137,6 +137,5 @@ def logout_user():
 
     username = payload.get("sub")
     users[username]["token"] = None
-    users[username]["updated_at"] = now_utc()
 
     return "", 200
