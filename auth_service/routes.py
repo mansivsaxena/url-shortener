@@ -119,8 +119,8 @@ def validate_user_token():
     payload = validate_token_and_user(token, current_app.config["JWT_SECRET_KEY"], users)
     if not payload:
         return "forbidden", 403
-
-    username = payload.get("username")
+    
+    username = payload.get("sub")
     return jsonify({"username": username}), 200
 
 @auth_bp.route("/users/logout", methods=["POST"])
