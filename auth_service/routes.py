@@ -8,7 +8,7 @@ from auth_service.utils import (
     hash_password,
     verify_password,
     extract_jwt_from_request,
-    verify_jwt_token,
+    validate_token_and_user,
 )
 
 auth_bp = Blueprint("auth", __name__)
@@ -90,16 +90,17 @@ def login_user():
     if not verify_password(user["pw_hash"], password, user["salt"]):
         return "forbidden", 403
 
-    # verify token provided matches stored token
     provided_token = extract_jwt_from_request()
     if provided_token:
-        payload = verify_jwt_token(provided_token, current_app.config["JWT_SECRET_KEY"])
+        # verify token was signed with correct key and payload contains valid username
+        # also check that provided token matches stored token
+        payload = validate_token_and_user( # <--- both verification and validation happen here
+            provided_token,
+            current_app.config["JWT_SECRET_KEY"],
+            users,
+            username_in_body=username,
+        )
         if not payload:
-            return "forbidden", 403
-        if payload.get("username") != username:
-            return "forbidden", 403
-        stored = user.get("token")
-        if not stored or not hmac.compare_digest(stored, provided_token):
             return "forbidden", 403
         return jsonify({"token": provided_token}), 200
     else:
@@ -115,20 +116,9 @@ def validate_user_token():
     if not token:
         return "forbidden", 403
 
-    payload = verify_jwt_token(token, current_app.config["JWT_SECRET_KEY"])
+    payload = validate_token_and_user(token, current_app.config["JWT_SECRET_KEY"], users)
     if not payload:
         return "forbidden", 403
 
     username = payload.get("username")
-    if not isinstance(username, str) or not username:
-        return "forbidden", 403
-
-    user = users.get(username)
-    if not user:
-        return "forbidden", 403
-
-    stored = user.get("token")
-    if not stored or not hmac.compare_digest(stored, token):
-        return "forbidden", 403
-
     return jsonify({"username": username}), 200

@@ -125,12 +125,21 @@ def cleanup_expired_urls(short_urls, analytics, expirations, owners):
     for short_id in expired_ids:
         owners.pop(short_id, None)
 
+###
+###    ------ Utils for Assignment 2 ------
+###
+
 def validate_request_token(req):
+    """
+    - Extract JWT token from request (Authorization header)
+    - Verify token and validate user by calling auth_service /users/validate API
+    - Return (is_valid, username) tuple
+    """
     auth_header = (req.headers.get("Authorization") or "").strip()
     if not auth_header:
         return False, None
 
-    base_url = current_app.config.get("AUTH_SERVICE_URL", "http://127.0.0.1:8001").rstrip("/")
+    base_url = current_app.config.get("AUTH_SERVICE_URL").rstrip("/")
     validate_url = f"{base_url}/users/validate"
     timeout = float(current_app.config.get("AUTH_VALIDATE_TIMEOUT_SECONDS", 1.0))
 

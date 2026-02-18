@@ -28,10 +28,10 @@ def get_json_body():
         return None
 
 # password hashing
-def generate_salt() -> bytes:
+def generate_salt():
     return secrets.token_bytes(SALT_BYTES)
 
-def hash_password(password: str, salt: bytes) -> bytes:
+def hash_password(password, salt):
     # PBKDF2-HMAC-SHA256
     return hashlib.pbkdf2_hmac(
         "sha256",
@@ -40,47 +40,53 @@ def hash_password(password: str, salt: bytes) -> bytes:
         PBKDF2_ITERS,
     )
 
-def verify_password(stored_hash: bytes, password: str, salt: bytes) -> bool:
+def verify_password(stored_hash, password, salt):
     candidate = hash_password(password, salt)
     return hmac.compare_digest(candidate, stored_hash)
 
-def _base64url_encode(data: bytes) -> str:
+def base64_encode(data):
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
 
-def _base64url_decode(s: str) -> bytes:
-    padding = "=" * (-len(s) % 4)
-    return base64.urlsafe_b64decode(s + padding)
+def base64_decode(encoded_data):
+    padding = "=" * (-len(encoded_data) % 4)
+    return base64.urlsafe_b64decode(encoded_data + padding)
+
+def generate_signature(key, message):
+    return hmac.new(key, message, hashlib.sha256).digest()
 
 # todo - provide sources for hashing alg used and hmac 
-def generate_jwt_token(username, secret_key, exp_seconds: int = 3600):
+def generate_jwt_token(username, secret_key, exp_seconds: int = 10):
     """
-        Creating JWT (header.payload.signature) using HMAC-SHA256
-        Payload:
+    - Create JWT token (header.payload.signature) 
+    - Payload:
         - username
-        - iat (issued at)
         - exp (expiration time)
+    - Sign using HMAC-SHA256 with secret_key
     """
-    iat = int(time.time())
+    time_issued = int(time.time())
     header = {"alg": "HS256", "typ": "JWT"}
-    payload = {"username": username, "iat": iat, "exp": iat + int(exp_seconds)}
+    payload = {"username": username, "exp": time_issued + int(exp_seconds)}
 
-    header_b = json.dumps(header, separators=(",", ":")).encode("utf-8")
-    payload_b = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    header_json = json.dumps(header, separators=(",", ":")).encode("utf-8")
+    payload_json = json.dumps(payload, separators=(",", ":")).encode("utf-8")
 
-    header_b64 = _base64url_encode(header_b)
-    payload_b64 = _base64url_encode(payload_b)
+    header_b64 = base64_encode(header_json)
+    payload_b64 = base64_encode(payload_json)
 
     signing_input = f"{header_b64}.{payload_b64}".encode("utf-8")
-    key = secret_key.encode("utf-8") if isinstance(secret_key, str) else secret_key
-    sig = hmac.new(key, signing_input, hashlib.sha256).digest()
-    sig_b64 = _base64url_encode(sig)
+    key = secret_key.encode("utf-8") 
+    sig = generate_signature(key, signing_input)
+    sig_b64 = base64_encode(sig)
 
     return f"{header_b64}.{payload_b64}.{sig_b64}"
 
-
 def verify_jwt_token(token, secret_key):
     """
-        Verifying JWT using the provided secret_key
+    - Verify JWT token using the provided secret_key
+        - Check structure (3 parts)
+        - Verify signature
+        - Check expiration
+    - Return payload dict on success, None on failure
     """
     if not isinstance(token, str):
         return None
@@ -90,26 +96,26 @@ def verify_jwt_token(token, secret_key):
         return None
     
     header_b64, payload_b64, sig_b64 = parts
-    try:
-        signing_input = f"{header_b64}.{payload_b64}".encode("utf-8")
-        key = secret_key.encode("utf-8") if isinstance(secret_key, str) else secret_key
-        expected_sig = hmac.new(key, signing_input, hashlib.sha256).digest()
-        actual_sig = _base64url_decode(sig_b64)
-        if not hmac.compare_digest(expected_sig, actual_sig):
-            return None
 
-        payload_json = _base64url_decode(payload_b64)
-        payload = json.loads(payload_json.decode("utf-8"))
+    signing_input = f"{header_b64}.{payload_b64}".encode("utf-8")
+    key = secret_key.encode("utf-8") 
 
-        # check expiration
-        now = int(time.time())
-        exp = int(payload.get("exp", 0))
-        if now >= exp:
-            return None
-
-        return payload
-    except Exception:
+    expected_sig = generate_signature(key, signing_input)
+    actual_sig = base64_decode(sig_b64)
+    
+    if not hmac.compare_digest(expected_sig, actual_sig):
         return None
+
+    payload_json = base64_decode(payload_b64)
+    payload = json.loads(payload_json.decode("utf-8"))
+
+    # check expiration
+    now = int(time.time())
+    exp = int(payload.get("exp", 0))
+    if now >= exp:
+        return None
+
+    return payload
 
 def extract_jwt_from_request():
     # support "Bearer <token>" and raw token in Authorization header
@@ -117,3 +123,35 @@ def extract_jwt_from_request():
     if auth.startswith("Bearer "):
         return auth.split(" ", 1)[1].strip()
     return auth
+
+
+def validate_token_and_user(jwt_token, secret_key, users_dict, username_in_body=None):
+    """
+    - Verify the provided JWT token using secret_key
+    - Validate that 
+        - the payload contains a valid username
+        - the user exists in users_dict
+        - the stored token matches the provided token
+
+    - Return the token payload dict on success, None on failure
+    """
+    payload = verify_jwt_token(jwt_token, secret_key)
+    if not payload:
+        return None
+
+    username_in_payload = payload.get("username")
+    if not username_in_payload:
+        return None
+
+    if username_in_body is not None and username_in_payload != username_in_body:
+        return None
+
+    user = users_dict.get(username_in_payload)
+    if not user:
+        return None
+
+    stored = user.get("token")
+    if not stored or not hmac.compare_digest(stored, jwt_token):
+        return None
+
+    return payload
