@@ -94,20 +94,19 @@ def login_user():
     if provided_token:
         # verify token was signed with correct key and payload contains valid username
         # also check that provided token matches stored token
-        payload = validate_token_and_user( # <--- both verification and validation happen here
+        payload = validate_token_and_user(
             provided_token,
             current_app.config["JWT_SECRET_KEY"],
             users,
             username_in_body=username,
         )
-        if not payload:
-            return "forbidden", 403
-        return jsonify({"token": provided_token}), 200
-    else:
-        # create new token
-        token = generate_jwt_token(username, current_app.config["JWT_SECRET_KEY"])
-        user["token"] = token
-        return jsonify({"token": token}), 200
+        if payload:
+            return jsonify({"token": provided_token}), 200
+
+    # create a fresh token after successful auth
+    token = generate_jwt_token(username, current_app.config["JWT_SECRET_KEY"])
+    user["token"] = token
+    return jsonify({"token": token}), 200
 
 @auth_bp.route("/users/validate", methods=["GET"])
 def validate_user_token():
