@@ -62,8 +62,8 @@ def generate_signature(key, message):
 def generate_jwt_token(username, secret_key, exp_seconds: int = 3600):
     """
     - Create JWT token (header.payload.signature) 
-    - Payload:
-        - username
+    - Payload (contains claims):
+        - sub (username)
         - exp (expiration time)
     - Sign using HMAC-SHA256 with secret_key
     """
