@@ -122,3 +122,20 @@ def validate_user_token():
 
     username = payload.get("username")
     return jsonify({"username": username}), 200
+
+@auth_bp.route("/users/logout", methods=["POST"])
+def logout_user():
+    token = extract_jwt_from_request()
+    if not token:
+        return "forbidden", 403
+
+    # verifies signature/exp + checks user exists + checks token matches stored token
+    payload = validate_token_and_user(token, current_app.config["JWT_SECRET_KEY"], users)
+    if not payload:
+        return "forbidden", 403
+
+    username = payload.get("username")
+    users[username]["token"] = None
+    users[username]["updated_at"] = now_utc()
+
+    return "", 200

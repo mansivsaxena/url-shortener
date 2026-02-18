@@ -55,7 +55,7 @@ def generate_signature(key, message):
     return hmac.new(key, message, hashlib.sha256).digest()
 
 # todo - provide sources for hashing alg used and hmac 
-def generate_jwt_token(username, secret_key, exp_seconds: int = 10):
+def generate_jwt_token(username, secret_key, exp_seconds: int = 100):
     """
     - Create JWT token (header.payload.signature) 
     - Payload:
