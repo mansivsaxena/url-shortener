@@ -18,15 +18,12 @@ url-shortener/
 │   └── utils.py
 ├── url_shortener_service/
 │   ├── __init__.py
-│   ├── auth_client.py
 │   ├── config.py
 │   ├── routes.py
 │   └── utils.py
 ├── auth_service_run.py
 ├── url_shortener_service_run.py
 ├── test_app.py
-├── test_1_marking_mk2.py
-├── test_2_bonus.py
 ├── read_from.csv
 └── requirements.txt
 ```
@@ -69,6 +66,7 @@ Auth service:
 - `PUT /users`
 - `POST /users/login`
 - `GET /users/validate`
+- `POST /users/logout`
 
 URL shortener service:
 - `GET /` (auth required)
@@ -81,18 +79,8 @@ URL shortener service:
 
 ## Testing
 
-Legacy Assignment 1 tests (reference only):
-
-```bash
-python test_1_marking_mk2.py
-```
-
-These tests send unauthenticated management requests, so they are not expected to pass in the Assignment 2 version.
-
-Assignment 2 tests:
+Run this after both services are running (`127.0.0.1:8001` and `127.0.0.1:8000`):
 
 ```bash
 python test_app.py
 ```
-
-Note: The provided `test_2_bonus.py` file is from Assignment 1 and sends unauthenticated requests. In Assignment 2, management endpoints require Authorization.

@@ -1,5 +1,4 @@
 from flask import Blueprint, current_app, jsonify
-import hmac
 from auth_service.utils import (
     generate_jwt_token,
     get_json_body,
@@ -67,7 +66,8 @@ def update_user():
     user["salt"] = new_salt
     user["pw_hash"] = hash_password(new_pw, new_salt)
     user["updated_at"] = now_utc()
-    # Invalidate the current token; the user must log in again.
+
+    # invalidate the current token; user must log in again
     user["token"] = None
     
     return "", 200
@@ -111,8 +111,7 @@ def login_user():
 
 @auth_bp.route("/users/validate", methods=["GET"])
 def validate_user_token():
-    # internal endpoint to validate token and return username in payload (if valid)
-    # used by url_shortener service to validate token in their requests
+    # internal endpoint used by url_shortener_service to validate token in requests
     token = extract_jwt_from_request()
     if not token:
         return "forbidden", 403
@@ -130,7 +129,6 @@ def logout_user():
     if not token:
         return "forbidden", 403
 
-    # verifies signature/exp + checks user exists + checks token matches stored token
     payload = validate_token_and_user(token, current_app.config["JWT_SECRET_KEY"], users)
     if not payload:
         return "forbidden", 403
