@@ -55,10 +55,15 @@ def base64_decode(encoded_data):
     padding = "=" * (-len(encoded_data) % 4)
     return base64.urlsafe_b64decode(encoded_data + padding)
 
+# reference for HMAC library usage:
+# [1] https://docs.python.org/3/library/hmac.html
+
+# reference for hashlib library usage:
+# [2] https://docs.python.org/3/library/hashlib.html#module-hashlib
+
 def generate_signature(key, message):
     return hmac.new(key, message, hashlib.sha256).digest()
 
-# todo - provide sources for hashing alg used and hmac 
 def generate_jwt_token(username, secret_key, exp_seconds: int = 3600):
     """
     - Create JWT token (header.payload.signature) 
@@ -86,6 +91,8 @@ def generate_jwt_token(username, secret_key, exp_seconds: int = 3600):
 
 def extract_jwt_from_request():
     auth = request.headers.get("Authorization", "").strip()
+    if auth.startswith("Bearer "):
+        return auth[len("Bearer "):].strip()
     return auth
 
 def verify_jwt_token(token, secret_key):
