@@ -67,7 +67,7 @@ def update_user():
     user["pw_hash"] = hash_password(new_pw, new_salt)
     user["updated_at"] = now_utc()
 
-    # invalidate the current token; user must log in again
+    # user must log in again
     user["token"] = None
     
     return "", 200
