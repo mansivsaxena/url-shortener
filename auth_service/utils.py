@@ -31,6 +31,8 @@ def get_json_body():
 def generate_salt():
     return secrets.token_bytes(SALT_BYTES)
 
+# reference for PBKDF2 usage:
+# [1] https://docs.python.org/3/library/hashlib.html#hashlib.pbkdf2_hmac
 def hash_password(password, salt):
     # PBKDF2-HMAC-SHA256
     return hashlib.pbkdf2_hmac(
@@ -56,10 +58,10 @@ def base64_decode(encoded_data):
     return base64.urlsafe_b64decode(encoded_data + padding)
 
 # reference for HMAC library usage:
-# [1] https://docs.python.org/3/library/hmac.html
+# [2] https://docs.python.org/3/library/hmac.html
 
 # reference for hashlib library usage:
-# [2] https://docs.python.org/3/library/hashlib.html#module-hashlib
+# [3] https://docs.python.org/3/library/hashlib.html#module-hashlib
 
 def generate_signature(message, key):
     return hmac.new(key, message, hashlib.sha256).digest()
