@@ -15,7 +15,6 @@ services:
     environment:
       APP_HOST: 0.0.0.0
       AUTH_SERVICE_URL: http://auth:8001
-      AUTH_VALIDATE_TIMEOUT_SECONDS: "1.0"
     expose:
       - "8000"
     depends_on:
