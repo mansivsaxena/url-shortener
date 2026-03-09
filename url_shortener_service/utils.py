@@ -1,8 +1,6 @@
-import json
-import re
+import re, json, requests
 from datetime import datetime, timezone
-
-from flask import request
+from flask import current_app, request
 
 BASE62_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
@@ -121,3 +119,50 @@ def expiration_check(short_urls, analytics, expirations):
         analytics.pop(short_id, None)
         expirations.pop(short_id, None)
     return expired_ids
+
+def cleanup_expired_urls(short_urls, analytics, expirations, owners):
+    expired_ids = expiration_check(short_urls, analytics, expirations)
+    for short_id in expired_ids:
+        owners.pop(short_id, None)
+
+###
+###    ------ Utils for Assignment 2 ------
+###
+
+def authenticate_request(req):
+    # extract token from auth header
+    auth_header = (req.headers.get("Authorization") or "").strip()
+    if not auth_header:
+        return False, None
+
+    # send validation request to auth_service
+    base_url = current_app.config.get("AUTH_SERVICE_URL").rstrip("/")
+    validate_url = f"{base_url}/users/validate"
+    timeout = float(current_app.config.get("AUTH_VALIDATE_TIMEOUT_SECONDS", 1.0))
+    response = requests.get(
+        validate_url,
+        headers={"Authorization": auth_header},
+        timeout=timeout,
+    )
+
+    # check for unsuccessful response from auth_service
+    if response.status_code != 200:
+        return False, None
+
+    # parse response and extract username
+    try:
+        payload = response.json()
+    except ValueError:
+        return False, None
+
+    username = payload.get("username") if isinstance(payload, dict) else None
+    if not isinstance(username, str) or not username:
+        return False, None
+
+    return True, username
+
+def require_authenticated_user(req):
+    is_valid, username = authenticate_request(req)
+    if not is_valid:
+        return None, ("forbidden", 403)
+    return username, None

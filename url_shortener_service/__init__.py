@@ -1,5 +1,5 @@
 from flask import Flask
-from app.config import Config
+from url_shortener_service.config import Config
 from flask.json.provider import DefaultJSONProvider
 
 def create_app():
@@ -8,7 +8,7 @@ def create_app():
     app.json_provider_class.sort_keys = False
     app.config.from_object(Config)
     
-    from app.routes import main_bp
+    from url_shortener_service.routes import main_bp
     app.register_blueprint(main_bp)
     
     return app

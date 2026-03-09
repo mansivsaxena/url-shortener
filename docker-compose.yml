@@ -1,0 +1,31 @@
+services:
+  auth:
+    build:
+      context: .
+      dockerfile: auth_service/Dockerfile
+    environment:
+      APP_HOST: 0.0.0.0
+    expose:
+      - "8001"
+
+  shortener:
+    build:
+      context: .
+      dockerfile: url_shortener_service/Dockerfile
+    environment:
+      APP_HOST: 0.0.0.0
+      AUTH_SERVICE_URL: http://auth:8001
+    expose:
+      - "8000"
+    depends_on:
+      - auth
+
+  gateway:
+    image: nginx:alpine
+    depends_on:
+      - auth
+      - shortener
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
