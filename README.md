@@ -33,7 +33,7 @@ url-shortener/
 ├── read_from.csv
 └── requirements.txt
 ```
-## PostgresSql Setup 
+## PostgreSql Setup 
 1. Install the Interactive Installer by EDB from https://www.postgresql.org/download/macosx/ (for MacOS)
 2. While installing from the wizard, keep the default port as 5432 and remember the Superuser (postgres) password you set (will be used to connect to the DB from our app)
 3. Start the Postgres server (either from terminal or from pgAdmin GUI)
