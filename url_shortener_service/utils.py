@@ -1,6 +1,7 @@
 import re, json, requests
 from datetime import datetime, timezone
 from flask import current_app, request
+from models import db, URL
 
 BASE62_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
@@ -107,23 +108,11 @@ def parse_expiration(body):
             return dt.astimezone(timezone.utc)
         except (ValueError, TypeError):
             raise ValueError("Invalid expires_at format; expected ISO-8601")
-        
-def expiration_check(short_urls, analytics, expirations):
-    now = datetime.now(timezone.utc)
-    expired_ids = [
-        short_id for short_id, exp in expirations.items()
-        if exp is not None and now >= exp
-    ]
-    for short_id in expired_ids:
-        short_urls.pop(short_id, None)
-        analytics.pop(short_id, None)
-        expirations.pop(short_id, None)
-    return expired_ids
 
-def cleanup_expired_urls(short_urls, analytics, expirations, owners):
-    expired_ids = expiration_check(short_urls, analytics, expirations)
-    for short_id in expired_ids:
-        owners.pop(short_id, None)
+def cleanup_expired_urls():
+    now = datetime.now(timezone.utc)
+    URL.query.filter(URL.expires_at!=None, URL.expires_at<=now).delete()
+    db.session.commit()
 
 ###
 ###    ------ Utils for Assignment 2 ------

@@ -1,3 +1,5 @@
 Flask
 requests
 pytest
+flask-sqlalchemy 
+psycopg2-binary

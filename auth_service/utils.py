@@ -6,6 +6,7 @@ import base64
 import time
 from datetime import datetime, timezone
 from flask import request
+from models import User
 
 PBKDF2_ITERS = 120_000
 SALT_BYTES = 16
@@ -134,7 +135,7 @@ def verify_jwt_token(token, secret_key):
 
     return payload
 
-def validate_token_and_user(jwt_token, secret_key, users_dict, username_in_body=None):
+def validate_token_and_user(jwt_token, secret_key, username_in_body=None):
     """
     - Verify the provided JWT token using secret_key
     - Validate that 
@@ -155,11 +156,11 @@ def validate_token_and_user(jwt_token, secret_key, users_dict, username_in_body=
     if username_in_body is not None and username_in_payload != username_in_body:
         return None
 
-    user = users_dict.get(username_in_payload)
+    user = User.query.filter_by(username=username_in_payload).first()
     if not user:
         return None
 
-    stored = user.get("token")
+    stored = user.token
     if not stored or not hmac.compare_digest(stored, jwt_token):
         return None
 
