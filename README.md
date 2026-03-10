@@ -33,6 +33,19 @@ url-shortener/
 ├── read_from.csv
 └── requirements.txt
 ```
+## PostgresSql Setup 
+1. Install the Interactive Installer by EDB from https://www.postgresql.org/download/macosx/ (for MacOS)
+2. While installing from the wizard, keep the default port as 5432 and remember the Superuser (postgres) password you set (will be used to connect to the DB from our app)
+3. Start the Postgres server (either from terminal or from pgAdmin GUI)
+4. Create the Database using the below query (you can do this either using the pgAdmin GUI or from your terminal, if you use the GUI make sure this is under the server which was started in the above step)
+   ``` CREATE DATABASE "WebService-Assignment-URL-shortener"; ```
+5. Modify the .env file with the password that you set for the superuser "postgres"
+6. Install Driver which is the bridge between postgres and flask app
+```pip install psycopg2-binary flask-sqlalchemy```
+7. Now we setup the tables in our DB by running
+   ``` python setup_db.py```
+8. Now you can start your services and execute APIs to persist in the database. You can check your rows of data using pgAdmin and querying the tables created
+
 
 ## Local Setup (without Docker)
 
