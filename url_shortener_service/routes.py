@@ -1,20 +1,35 @@
 from collections import OrderedDict
 from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify
+from sqlalchemy import text
 from url_shortener_service.utils import (
-    shorten_url,
+    assign_short_code,
     is_valid_url,
     bad_request,
     extract_url,
     get_json_body,
     is_valid_custom_id,
     parse_expiration,
+    placeholder_short_code,
     cleanup_expired_urls,
     require_authenticated_user,
 )
 from models import User, db, URL
 
 main_bp = Blueprint("main", __name__)
+
+@main_bp.route("/healthz", methods=["GET"])
+def healthcheck():
+    return jsonify({"status": "ok"}), 200
+
+@main_bp.route("/readyz", methods=["GET"])
+def readiness():
+    try:
+        db.session.execute(text("SELECT 1"))
+        return jsonify({"status": "ready"}), 200
+    except Exception:
+        db.session.rollback()
+        return jsonify({"status": "not ready"}), 503
 
 @main_bp.route("/", methods=["GET", "POST", "DELETE"])
 def manage_urls():
@@ -87,14 +102,14 @@ def manage_urls():
             
             short_id = custom_id
         else:
-            short_id = shorten_url()
-            while short_id in short_urls:     
-                short_id = shorten_url()
+            short_id = placeholder_short_code()
 
         new_url_entry = URL(short_code=short_id, long_url=long_url, owner_id=owner_id, expires_at=exp_dt)
         db.session.add(new_url_entry)
+        if not custom_id:
+            assign_short_code(new_url_entry)
         db.session.commit()
-        return jsonify({"id": short_id}), 201
+        return jsonify({"id": new_url_entry.short_code}), 201
 
     elif request.method == "DELETE":
         URL.query.filter_by(owner_id=owner_id).delete()
@@ -175,7 +190,6 @@ def bulk_shorten():
     if auth_error:
         return auth_error
 
-    existing_codes = {url.short_code for url in URL.query.all()}
     cleanup_expired_urls()
     owner_id = User.query.filter_by(username=username).first().id
 
@@ -193,20 +207,18 @@ def bulk_shorten():
             failed.append(url)
             continue
 
-        short_id = shorten_url()
-        while short_id in existing_codes or short_id in success:
-            short_id = shorten_url()
-        
-        success[short_id] = url
-        
         new_url_objects.append(URL(
-            short_code=short_id, 
+            short_code=placeholder_short_code(),
             long_url=url, 
             owner_id=owner_id
         ))
 
     if new_url_objects:
         db.session.add_all(new_url_objects)
+        db.session.flush()
+        for url_entry in new_url_objects:
+            short_id = assign_short_code(url_entry)
+            success[short_id] = url_entry.long_url
         db.session.commit()
 
     return jsonify({

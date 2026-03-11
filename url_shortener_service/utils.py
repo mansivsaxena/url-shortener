@@ -1,11 +1,12 @@
-import re, json, requests
+import json
+import re
+import uuid
+import requests
 from datetime import datetime, timezone
 from flask import current_app, request
 from models import db, URL
 
 BASE62_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-
-url_counter = 0
 
 URL_PATTERN = re.compile(
     r'^https?://'                                  
@@ -62,11 +63,8 @@ def get_json_body():
         return json.loads(req_body.decode("utf-8"))
     except Exception:
         return None
-    
-def shorten_url():
-    global url_counter
-    num = url_counter
-    url_counter += 1
+
+def encode_short_code(num):
     if num == 0:
         return BASE62_CHARS[0]
 
@@ -75,6 +73,15 @@ def shorten_url():
         result = BASE62_CHARS[num % 62] + result
         num = num // 62
     return result
+
+def placeholder_short_code():
+    return f"tmp-{uuid.uuid4().hex}"
+
+def assign_short_code(url_entry):
+    if url_entry.id is None:
+        db.session.flush()
+    url_entry.short_code = encode_short_code(url_entry.id)
+    return url_entry.short_code
 
 ###
 ###    ------ Utils for Bonus Features ------
