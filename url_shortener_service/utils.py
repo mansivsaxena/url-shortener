@@ -80,7 +80,7 @@ def placeholder_short_code():
 def assign_short_code(url_entry):
     if url_entry.id is None:
         db.session.flush()
-    url_entry.short_code = encode_short_code(url_entry.id)
+    url_entry.short_code = encode_short_code(url_entry.id - 1)
     return url_entry.short_code
 
 ###
