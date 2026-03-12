@@ -1,7 +1,7 @@
+import os
 from flask import Flask
 from flask.json.provider import DefaultJSONProvider
-import url_shortener_service
-from url_shortener_service.extensions import db
+from extensions import db
 
 def create_auth_app():
     app = Flask(__name__)
@@ -11,10 +11,19 @@ def create_auth_app():
     # secret key to sign JWT tokens - at least 256 bits long as we are using HMAC-SHA256
     app.config['JWT_SECRET_KEY'] = 'dummy-secret-key-at-least-256-bits-long'
     
-    app.config['SQLALCHEMY_DATABASE_URI'] = url_shortener_service.config.Config.SQLALCHEMY_DATABASE_URI
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = url_shortener_service.config.Config.SQLALCHEMY_TRACK_MODIFICATIONS
+    user = os.getenv('DB_USER')
+    pw = os.getenv('DB_PASSWORD')
+    host = os.getenv('DB_HOST', 'localhost')
+    port = os.getenv('DB_PORT')
+    db_name = os.getenv('DB_NAME')
+    app.config['SQLALCHEMY_DATABASE_URI'] = f"postgresql://{user}:{pw}@{host}:{port}/{db_name}"
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     db.init_app(app)
+
+    with app.app_context():
+        from models import User, URL  # noqa: F401
+        db.create_all()
     
     from auth_service.routes import auth_bp
     app.register_blueprint(auth_bp)

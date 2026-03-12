@@ -1,6 +1,5 @@
-from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timezone
-from url_shortener_service.extensions import db
+from extensions import db
 
 class User(db.Model):
     __tablename__ = 'users'
