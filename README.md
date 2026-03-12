@@ -1,13 +1,15 @@
 # UvA - Web Services and Cloud-Based Systems
 
-## Group 9 - Assignment 2 (URL Shortener + Auth Microservice)
+## Group 9 - Assignment 3 (Containers & Kubernetes)
 
-This repository contains:
-- `auth_service` (`127.0.0.1:8001`) for user management, login, JWT issuance, and JWT validation.
-- `url_shortener_service` (`127.0.0.1:8000`) for per-user URL ownership and URL CRUD.
-- Optional bonus deployment with Docker Compose + Nginx gateway on a single port (`127.0.0.1:8080`).
+Two Flask microservices behind an Nginx reverse proxy, backed by PostgreSQL.
+Deployable locally via Docker Compose or to a Kubernetes cluster.
 
-The shortener service does not know the JWT secret. It validates tokens by calling auth service `GET /users/validate`.
+- **Auth service** — user registration, login, JWT issuance, token validation.
+- **URL shortener service** — per-user URL CRUD with ownership enforcement.
+- **Nginx gateway** — single entry point routing `/auth/*` to auth and `/*` to shortener.
+
+The shortener never sees the JWT secret; it validates tokens by calling `GET /users/validate` on the auth service.
 
 ## Project Structure
 
@@ -24,99 +26,96 @@ url-shortener/
 │   ├── config.py
 │   ├── routes.py
 │   └── utils.py
+├── k8s/
+│   ├── configmap.yaml
+│   ├── secret.yaml
+│   ├── postgres-pvc.yaml
+│   ├── postgres-deployment.yaml
+│   ├── postgres-service.yaml
+│   ├── auth-deployment.yaml
+│   ├── auth-service.yaml
+│   ├── shortener-deployment.yaml
+│   ├── shortener-service.yaml
+│   ├── nginx-configmap.yaml
+│   ├── nginx-deployment.yaml
+│   └── nginx-service.yaml
 ├── nginx/
 │   └── nginx.conf
+├── extensions.py
+├── models.py
 ├── docker-compose.yml
+├── .env
 ├── auth_service_run.py
 ├── url_shortener_service_run.py
 ├── test_app.py
-├── read_from.csv
+├── test_bonus.py
 └── requirements.txt
 ```
-## PostgreSql Setup 
-1. Install the Interactive Installer by EDB from https://www.postgresql.org/download/macosx/ (for MacOS)
-2. While installing from the wizard, keep the default port as 5433 and remember the Superuser (postgres) password you set (will be used to connect to the DB from our app)
-3. Start the Postgres server (either from terminal or from pgAdmin GUI)
-4. Create the Database using the below query (you can do this either using the pgAdmin GUI or from your terminal, if you use the GUI make sure this is under the server which was started in the above step)
-   ``` CREATE DATABASE "WebService-Assignment-URL-shortener"; ```
-5. Modify the .env file with the password that you set for the superuser "postgres", you can also modify other parameters here if you changed them
-6. Install Driver which is the bridge between postgres and flask app
-```pip install psycopg2-binary flask-sqlalchemy```
-7. Now we setup the tables in our DB by running
-   ``` python setup_db.py```
-8. Now you can start your services and execute APIs to persist in the database. You can check your rows of data using pgAdmin and querying the tables created
 
+## Running with Docker Compose
 
-## Local Setup (without Docker)
+Requires Docker and Docker Compose. No local Postgres install needed — the
+database runs as a container with a persistent volume.
 
-1. Create and activate a virtual environment:
-```bash
-python -m venv .venv
-source .venv/bin/activate
-```
-
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-3. Run the services in separate terminals:
-```bash
-python auth_service_run.py
-```
-```bash
-python url_shortener_service_run.py
-```
-
-## Docker Compose + Nginx Gateway (Bonus)
-
-Build and run all services:
 ```bash
 docker compose up --build -d
 ```
 
-Stop and remove containers:
+This starts four containers: `db` (Postgres), `auth`, `shortener`, and
+`gateway` (Nginx). The gateway listens on `http://127.0.0.1:8080`.
+
+To stop:
+
 ```bash
-docker compose down
+docker compose down          # keeps data
+docker compose down -v       # also removes the database volume
 ```
 
-Gateway is exposed on `127.0.0.1:8080`:
-- Auth service via `/auth/*` (e.g., `POST /auth/users/login`)
-- URL shortener via `/*` (e.g., `POST /`, `GET /<id>`)
+## Kubernetes Deployment
+
+The `k8s/` directory contains all manifests needed to deploy the stack on a
+multi-node cluster. See `k8s-deploy-guide.md` for the full walkthrough
+(cluster setup, image distribution, manifest apply order).
+
+Key points:
+- Shortener runs with **3 replicas** across worker nodes.
+- Postgres uses a PersistentVolumeClaim for data persistence.
+- The gateway is exposed via **NodePort 30080**.
+- Config and credentials are managed through a ConfigMap and Secret.
 
 ## API Summary
 
-Auth service endpoints:
-- `POST /users`
-- `PUT /users`
-- `POST /users/login`
-- `GET /users/validate`
-- `POST /users/logout`
+**Auth** (`/auth/` via gateway):
 
-URL shortener endpoints:
-- `GET /` (auth required)
-- `POST /` (auth required)
-- `DELETE /` (auth required, deletes current user's mappings)
-- `GET /<id>` (public)
-- `PUT /<id>` (auth required, owner-only)
-- `DELETE /<id>` (auth required, owner-only)
-- `POST /bulk` (auth required)
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/users` | No | Register |
+| PUT | `/users` | Yes | Update password |
+| POST | `/users/login` | No | Login, returns JWT |
+| GET | `/users/validate` | Yes | Validate token |
+| POST | `/users/logout` | Yes | Logout |
 
-## Quick Gateway Examples
+**Shortener** (`/` via gateway):
 
-Create user:
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/` | Yes | List user's URLs |
+| POST | `/` | Yes | Shorten a URL |
+| DELETE | `/` | Yes | Delete all user's URLs |
+| GET | `/<id>` | No | Get URL info + analytics |
+| PUT | `/<id>` | Yes | Update URL (owner only) |
+| DELETE | `/<id>` | Yes | Delete URL (owner only) |
+| POST | `/bulk` | Yes | Shorten multiple URLs |
+
+## Testing
+
+With Docker Compose running:
+
 ```bash
-curl -X POST http://127.0.0.1:8080/auth/users \
-  -H "Content-Type: application/json" \
-  -d '{"username":"alice","password":"secret"}'
+python -m pytest test_app.py test_bonus.py -v
 ```
 
-Login:
-```bash
-curl -X POST http://127.0.0.1:8080/auth/users/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"alice","password":"secret"}'
-```
+Both test files point at the gateway (`127.0.0.1:8080`).
 
 ## Testing
 
