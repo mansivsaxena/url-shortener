@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: shortener
+  name: auth
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: shortener
+      app: auth
   template:
     metadata:
       labels:
-        app: shortener
+        app: auth
     spec:
       containers:
-        - name: shortener
-          image: shortener:latest
+        - name: auth
+          image: auth:latest
           ports:
-            - containerPort: 8000
+            - containerPort: 8001
           env:
             - name: DB_USER
               valueFrom:
@@ -38,11 +38,6 @@ spec:
                 configMapKeyRef:
                   name: app-config
                   key: DB_PORT
-            - name: AUTH_SERVICE_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: app-config
-                  key: AUTH_SERVICE_URL
             - name: DB_HOST
               valueFrom:
                 configMapKeyRef:
@@ -51,12 +46,5 @@ spec:
           livenessProbe:
             httpGet:
               path: /healthz
-              port: 8000
+              port: 8001
             initialDelaySeconds: 5
-            periodSeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /readyz
-              port: 8000
-            initialDelaySeconds: 5
-            periodSeconds: 10
