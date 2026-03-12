@@ -48,3 +48,8 @@ spec:
               path: /healthz
               port: 8001
             initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8001
