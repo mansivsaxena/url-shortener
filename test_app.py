@@ -101,7 +101,6 @@ class TestApi(unittest.TestCase):
 
     def test_put_id(self):
         id = self.id_shortened_url_1
-        url_to_update = self.id_shortened_url_1
         url_after_update = self.url_after_update
         not_existing_id = self.not_existing_id
         invalid_url = self.invalid_url
