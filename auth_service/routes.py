@@ -29,7 +29,6 @@ def readiness():
 
 @auth_bp.route("/users", methods=["POST"])
 def create_user():
-    usernames_from_db = {user.username for user in User.query.all()}
     body = get_json_body()
     if not body:
         return "forbidden", 403
@@ -39,7 +38,7 @@ def create_user():
     if not username or not password:
         return "forbidden", 403
 
-    if username in usernames_from_db:
+    if User.query.filter_by(username=username).first():
         return "duplicate", 409
 
     salt = generate_salt()
