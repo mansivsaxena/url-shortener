@@ -87,10 +87,9 @@ def manage_urls():
             return bad_request()
 
         custom_id = req_body.get("custom_id") if req_body else None
-        short_urls = {url.short_code for url in URL.query.all()}
         if custom_id:
             custom_id = custom_id.strip().lower()
-            if custom_id in short_urls:
+            if URL.query.filter_by(short_code=custom_id).first():
                 return jsonify({
                     "error": "ID already exists. Please choose a different one."
                 }), 400
@@ -135,7 +134,13 @@ def handle_url(id):
             url_entry.click_count += 1
             url_entry.last_accessed = datetime.now(timezone.utc)
             db.session.commit()
-            return jsonify({"value": url_entry.long_url}), 301
+            return jsonify({
+                "value": url_entry.long_url,
+                "analytics": {
+                    "click_count": url_entry.click_count,
+                    "last_accessed": url_entry.last_accessed.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                }
+            }), 301
         else:
             return jsonify({"error": f"Short URL ID: {id} not found"}), 404 
 
@@ -145,36 +150,25 @@ def handle_url(id):
 
     cleanup_expired_urls()
 
-    short_urls = {url.short_code for url in URL.query.all()}
-    owner_id = URL.query.filter_by(short_code=id).first().owner_id
-    username_from_db = User.query.filter_by(id=owner_id).first().username
-    
-    if request.method == "PUT":
-        if id not in short_urls:
-            return jsonify({"error": f"Short URL ID: {id} not found"}), 404
-        if username != username_from_db:
-            return "forbidden", 403
+    url_entry = URL.query.filter_by(short_code=id).first()
+    if not url_entry:
+        return jsonify({"error": f"Short URL ID: {id} not found"}), 404
+    if url_entry.owner.username != username:
+        return "forbidden", 403
 
+    if request.method == "PUT":
         req_body = get_json_body()
         new_url = extract_url(req_body)
 
         if not new_url or not is_valid_url(new_url):
             return bad_request()
 
-        update_entry = URL.query.filter_by(short_code=id).first()
-        update_entry.long_url = new_url
+        url_entry.long_url = new_url
         db.session.commit()
         return jsonify({"message": f"URL for short ID {id} updated successfully"}), 200
 
     elif request.method == "DELETE": 
-        if id not in short_urls:
-            return jsonify({"error": f"Short URL ID: {id} not found"}), 404
-        owner_id = URL.query.filter_by(short_code=id).first().owner_id
-        username_from_db = User.query.filter_by(id=owner_id).first().username
-        if username != username_from_db:
-            return "forbidden", 403
-
-        URL.query.filter_by(short_code=id).delete()
+        db.session.delete(url_entry)
         db.session.commit()
 
         # 204 doesnt allow any response body so empty message
@@ -198,6 +192,8 @@ def bulk_shorten():
         return bad_request()
 
     urls = req_body.get("values")
+    if not isinstance(urls, list) or not urls:
+        return bad_request()
     success = {}
     failed = []
     new_url_objects = [] 

@@ -1,4 +1,5 @@
 from flask import Blueprint, current_app, jsonify
+from sqlalchemy import text
 from auth_service.utils import (
     generate_jwt_token,
     get_json_body,
@@ -12,6 +13,19 @@ from auth_service.utils import (
 from models import User, db
 
 auth_bp = Blueprint("auth", __name__)
+
+@auth_bp.route("/healthz", methods=["GET"])
+def healthcheck():
+    return jsonify({"status": "ok"}), 200
+
+@auth_bp.route("/readyz", methods=["GET"])
+def readiness():
+    try:
+        db.session.execute(text("SELECT 1"))
+        return jsonify({"status": "ready"}), 200
+    except Exception:
+        db.session.rollback()
+        return jsonify({"status": "not ready"}), 503
 
 @auth_bp.route("/users", methods=["POST"])
 def create_user():

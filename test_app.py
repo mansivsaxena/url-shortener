@@ -7,8 +7,8 @@ import random
 
 class TestApi(unittest.TestCase):
     # modify this to your local server settings
-    base_url = "http://127.0.0.1:8000"
-    auth_url = "http://127.0.0.1:8001"
+    base_url = "http://127.0.0.1:8080"
+    auth_url = "http://127.0.0.1:8080/auth"
     end_point = "/"
     test_username = "test"
     test_password = "test"
