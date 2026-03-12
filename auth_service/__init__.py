@@ -8,8 +8,8 @@ def create_auth_app():
     app.json_provider_class = DefaultJSONProvider
     app.json_provider_class.sort_keys = False
     
-    # secret key to sign JWT tokens - at least 256 bits long as we are using HMAC-SHA256
-    app.config['JWT_SECRET_KEY'] = 'dummy-secret-key-at-least-256-bits-long'
+    # secret key to sign JWT tokens - read from environment, never hardcoded
+    app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
     
     user = os.getenv('DB_USER')
     pw = os.getenv('DB_PASSWORD')

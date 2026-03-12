@@ -21,6 +21,7 @@ services:
       dockerfile: auth_service/Dockerfile
     environment:
       APP_HOST: 0.0.0.0
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
