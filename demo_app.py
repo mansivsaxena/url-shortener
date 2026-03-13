@@ -58,8 +58,7 @@ print(f"\nURL Shortener Demo")
 print(f"Target: {BASE}")
 print(f"User:   {USER}")
 
-# ── Auth ──────────────────────────────────────────────────────
-
+# auth
 pause("Register a new user")
 r = show(requests.post(f"{AUTH}/users", json={"username": USER, "password": PASS}))
 assert r.status_code == 201, f"Register failed: {r.status_code}"
@@ -74,8 +73,7 @@ pause("Validate the token")
 r = show(requests.get(f"{AUTH}/users/validate", headers=headers))
 assert r.status_code == 200, f"Validate failed: {r.status_code}"
 
-# ── Shorten ───────────────────────────────────────────────────
-
+# shorten
 pause("Shorten a URL (https://example.com)")
 r = show(requests.post(f"{BASE}/", headers=headers, json={"value": "https://example.com"}))
 assert r.status_code == 201
@@ -103,8 +101,7 @@ data = r.json()
 count = len(data.get("value", data) if isinstance(data, dict) else data)
 print(f"  URLs owned: {count}")
 
-# ── Update & Delete ───────────────────────────────────────────
-
+# update and delete
 pause(f"Update /{short_id} to point to https://updated.com")
 r = show(requests.put(f"{BASE}/{short_id}", headers=headers, json={"url": "https://updated.com"}))
 assert r.status_code == 200
@@ -117,15 +114,44 @@ pause(f"Verify /{short_id_2} is gone (expect 404)")
 r = show(requests.get(f"{BASE}/{short_id_2}", allow_redirects=False))
 assert r.status_code == 404
 
-# ── Bulk ──────────────────────────────────────────────────────
-
+# bulk
 pause("Bulk shorten two URLs at once")
 r = show(requests.post(f"{BASE}/bulk", headers=headers,
                         json={"values": ["https://one.com", "https://two.com"]}))
 assert r.status_code == 201
 
-# ── Ownership ─────────────────────────────────────────────────
+# persistence
+if "127.0.0.1" in BASE or "localhost" in BASE:
+    pause(
+        "Persistence check — in another terminal run:\n"
+        "docker compose down && docker compose up -d\n"
+        "Wait until the stack is healthy (~15 s), then press Enter"
+    )
+    pause(f"Verify /{short_id} still resolves after full container restart")
+    r = show(requests.get(f"{BASE}/{short_id}", allow_redirects=False))
+    assert r.status_code in (200, 301), f"Data lost after restart — status {r.status_code}"
+    print("Data survived docker compose down / up")
 
+# replica consistency
+pause(
+    "Replica consistency - create a URL then fetch it 5 times.\n"
+    "With 3 shortener replicas Kubernetes round-robins across pods;\n"
+    "all reads must return the same result regardless of which pod serves them."
+)
+r = show(requests.post(f"{BASE}/", headers=headers, json={"value": "https://replica-check.example.com"}))
+assert r.status_code == 201
+replica_id = r.json()["id"]
+print(f"Short ID: {replica_id}")
+
+print("\n5 sequential GETs:")
+for i in range(1, 6):
+    r = requests.get(f"{BASE}/{replica_id}", allow_redirects=False)
+    val = r.json().get("value", "?")
+    print(f"    [{i}] status={r.status_code}  value={val}")
+    assert r.status_code in (200, 301)
+print("Consistent data from shared Postgres across all replicas")
+
+# ownership
 pause(f"Ownership check — a different user tries to delete /{short_id}")
 other = f"other_{tag}"
 requests.post(f"{AUTH}/users", json={"username": other, "password": PASS})
@@ -134,8 +160,7 @@ other_headers = {"Authorization": r2.json()["token"]}
 r = show(requests.delete(f"{BASE}/{short_id}", headers=other_headers))
 assert r.status_code == 403
 
-# ── Cleanup ───────────────────────────────────────────────────
-
+# cleanup
 pause("Delete all URLs for this user")
 r = show(requests.delete(f"{BASE}/", headers=headers))
 assert r.status_code in (200, 204, 404)
@@ -148,8 +173,7 @@ vals = data.get("value") if isinstance(data, dict) else data
 count = len(vals) if vals else 0
 print(f"  URLs owned: {count}")
 
-# ── Logout ────────────────────────────────────────────────────
-
+# logout
 pause("Logout")
 r = show(requests.post(f"{AUTH}/users/logout", headers=headers))
 assert r.status_code == 200
@@ -158,8 +182,7 @@ pause("Try using the token after logout (should be rejected)")
 r = show(requests.get(f"{BASE}/", headers=headers))
 assert r.status_code in (401, 403)
 
-# ── Result ────────────────────────────────────────────────────
-
+# result
 print(f"\n{'='*60}")
 if ok:
     print("  DEMO COMPLETE — all steps passed")
