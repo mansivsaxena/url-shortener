@@ -48,7 +48,6 @@ url-shortener/
 ├── auth_service_run.py
 ├── url_shortener_service_run.py
 ├── test_app.py
-├── test_bonus.py
 └── requirements.txt
 ```
 
@@ -74,7 +73,7 @@ docker compose down -v       # also removes the database volume
 ## Kubernetes Deployment
 
 The `k8s/` directory contains all manifests needed to deploy the stack on a
-multi-node cluster. See `k8s-deploy-guide.md` for the full walkthrough
+multi-node cluster. See `k8s-setup-commands.md` for the full walkthrough
 (cluster setup, image distribution, manifest apply order).
 
 Key points:
@@ -112,19 +111,16 @@ Key points:
 With Docker Compose running:
 
 ```bash
-python -m pytest test_app.py test_bonus.py -v
+python -m pytest test_app.py -v
 ```
 
-Both test files point at the gateway (`127.0.0.1:8080`).
+`test_app.py` points at the gateway (`127.0.0.1:8080`) and covers all auth and shortener endpoints.
 
-## Testing
+## Demo Script
 
-Run this after both services are running on local ports (`127.0.0.1:8001` and `127.0.0.1:8000`):
+`demo_app.py` is an interactive step-by-step walkthrough of the full stack. It includes steps for the assignment 3 demo requirements:
+
 ```bash
-python test_app.py
-```
-
-Run the bonus tests through Docker + Nginx gateway:
-```bash
-python test_bonus.py
+python demo_app.py                          # Docker Compose (localhost:8080)
+python demo_app.py http://<node-ip>:30080   # Kubernetes
 ```
