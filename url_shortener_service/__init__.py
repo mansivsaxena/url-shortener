@@ -1,4 +1,7 @@
-from flask import Flask
+import os
+import uuid
+
+from flask import Flask, request as _req
 from url_shortener_service.config import Config
 from flask.json.provider import DefaultJSONProvider
 from extensions import db
@@ -14,8 +17,15 @@ def create_app():
     with app.app_context():
         from models import User, URL  # noqa: F401
         db.create_all()
-    
+
     from url_shortener_service.routes import main_bp
     app.register_blueprint(main_bp)
-    
+
+    @app.after_request
+    def _trace(response):
+        rid = _req.headers.get("X-Request-ID") or str(uuid.uuid4())
+        response.headers["X-Request-ID"] = rid
+        response.headers["X-Served-By"] = os.environ.get("HOSTNAME", "localhost")
+        return response
+
     return app
