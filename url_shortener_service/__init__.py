@@ -1,7 +1,7 @@
 from flask import Flask
 from url_shortener_service.config import Config
 from flask.json.provider import DefaultJSONProvider
-from url_shortener_service.extensions import db
+from extensions import db
 
 def create_app():
     app = Flask(__name__)

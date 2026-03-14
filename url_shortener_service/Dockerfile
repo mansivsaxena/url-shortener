@@ -9,5 +9,7 @@ COPY url_shortener_service /app/url_shortener_service
 COPY url_shortener_service_run.py /app/url_shortener_service_run.py
 
 EXPOSE 8000
+COPY . .
+ENV PYTHONPATH=/app
 
 CMD ["python", "url_shortener_service_run.py"]

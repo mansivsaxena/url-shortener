@@ -1,5 +1,5 @@
 from url_shortener_service import create_app 
-from url_shortener_service.extensions import db
+from extensions import db
 
 app = create_app()
 
