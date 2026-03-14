@@ -144,7 +144,7 @@ if "127.0.0.1" in BASE or "localhost" in BASE:
     )
     pause(f"Verify /{short_id} still resolves after full container restart")
     r = show(requests.get(f"{BASE}/{short_id}", allow_redirects=False))
-    assert r.status_code in (200, 301), f"Data lost after restart — status {r.status_code}"
+    assert r.status_code in (200, 301), f"Data lost after restart - status {r.status_code}"
     confirm("Data survived docker compose down / up")
 
 # replica consistency
@@ -216,7 +216,7 @@ confirm("Logged-out token was rejected")
 # result
 print(f"\n{'='*60}")
 if ok:
-    print("  DEMO COMPLETE — all steps passed")
+    print("  DEMO COMPLETE - all steps passed")
 else:
-    print("  DEMO COMPLETE — some steps had server errors")
+    print("  DEMO COMPLETE - some steps had server errors")
 print(f"{'='*60}\n")

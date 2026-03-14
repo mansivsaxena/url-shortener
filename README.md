@@ -5,9 +5,9 @@
 Two Flask microservices behind an Nginx reverse proxy, backed by PostgreSQL.
 Deployable locally via Docker Compose or to a Kubernetes cluster.
 
-- **Auth service** — user registration, login, JWT issuance, token validation.
-- **URL shortener service** — per-user URL CRUD with ownership enforcement.
-- **Nginx gateway** — single entry point routing `/auth/*` to auth and `/*` to shortener.
+- **Auth service** - user registration, login, JWT issuance, token validation.
+- **URL shortener service** - per-user URL CRUD with ownership enforcement.
+- **Nginx gateway** - single entry point routing `/auth/*` to auth and `/*` to shortener.
 
 The shortener never sees the JWT secret; it validates tokens by calling `GET /users/validate` on the auth service.
 
@@ -53,7 +53,7 @@ url-shortener/
 
 ## Running with Docker Compose
 
-Requires Docker and Docker Compose. No local Postgres install needed — the
+Requires Docker and Docker Compose. No local Postgres install needed - the
 database runs as a container with a persistent volume.
 
 ```bash
@@ -123,4 +123,13 @@ python -m pytest test_app.py -v
 ```bash
 python demo_app.py                          # Docker Compose (localhost:8080)
 python demo_app.py http://<node-ip>:30080   # Kubernetes
+```
+
+For bonus features, `demo_bonus.py` provides a similarly structured walkthrough of:
+- request tracing headers (`X-Request-ID`, `X-Served-By`)
+- Kubernetes HPA auto-scaling under load
+
+```bash
+python demo_bonus.py                          # Docker Compose (tracing only)
+python demo_bonus.py http://<node-ip>:30080   # Kubernetes
 ```
