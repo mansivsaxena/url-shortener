@@ -45,6 +45,8 @@ url-shortener/
 ├── .env
 ├── auth_service_run.py
 ├── url_shortener_service_run.py
+├── extensions.py
+├── models.py
 ├── test_app.py
 └── requirements.txt
 ```
@@ -156,6 +158,15 @@ curl -X POST http://127.0.0.1:8080/ \
   -H "Authorization: <token>" \
   -H "Content-Type: application/json" \
   -d '{"value":"https://example.com"}'
+```
+
+Rate limiting:
+```bash
+for i in {1..20}; do
+  curl -o /dev/null -s -w "%{http_code}\n" -X POST http://127.0.0.1:8080/auth/users \
+  -H "Content-Type: application/json" \
+  -d "{\"username\":\"test$i\",\"password\":\"password\"}"
+done
 ```
 
 ## Testing

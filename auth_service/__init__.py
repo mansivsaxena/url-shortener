@@ -1,23 +1,13 @@
-import os
 from flask import Flask
 from flask.json.provider import DefaultJSONProvider
 from extensions import db
+from auth_service.config import Config
 
 def create_auth_app():
     app = Flask(__name__)
     app.json_provider_class = DefaultJSONProvider
     app.json_provider_class.sort_keys = False
-    
-    # secret key to sign JWT tokens - read from environment, never hardcoded
-    app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
-    
-    user = os.getenv('DB_USER')
-    pw = os.getenv('DB_PASSWORD')
-    host = os.getenv('DB_HOST', 'localhost')
-    port = os.getenv('DB_PORT')
-    db_name = os.getenv('DB_NAME')
-    app.config['SQLALCHEMY_DATABASE_URI'] = f"postgresql://{user}:{pw}@{host}:{port}/{db_name}"
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config.from_object(Config)
 
     db.init_app(app)
 
