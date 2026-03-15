@@ -11,7 +11,7 @@ class User(db.Model):
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     token = db.Column(db.Text)
     
-    # Relationship: One User has Many URLs
+    # Relationship: One User can have many URLs mapped to them
     urls = db.relationship('URL', backref='owner', cascade="all, delete-orphan")
 
 class URL(db.Model):

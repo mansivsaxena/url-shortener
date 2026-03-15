@@ -1,12 +1,10 @@
 import os
 
-
 def _get_float_env(name, default):
     try:
         return float(os.getenv(name, default))
     except (ValueError, TypeError):
         return float(default)
-
 
 class Config:
     DEBUG = False
