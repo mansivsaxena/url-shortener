@@ -62,20 +62,7 @@ For assignment 3.1, the main files are:
 - `nginx/nginx.conf`
 - `.env`
 
-For assignment 3.2, the main files are:
-- `k8s/configmap.yaml`
-- `k8s/secret.yaml`
-- `k8s/postgres-pvc.yaml`
-- `k8s/postgres-deployment.yaml`
-- `k8s/postgres-service.yaml`
-- `k8s/auth-deployment.yaml`
-- `k8s/auth-service.yaml`
-- `k8s/shortener-deployment.yaml`
-- `k8s/shortener-service.yaml`
-- `k8s/nginx-configmap.yaml`
-- `k8s/nginx-deployment.yaml`
-- `k8s/nginx-service.yaml`
-- `k8s/shortener-hpa.yaml`
+For assignment 3.2, the main files are in the `k8s/` directory.
 
 Both parts use the shared application code in `auth_service/`, `url_shortener_service/`, `models.py`, `extensions.py`, `auth_service_run.py`, `url_shortener_service_run.py`, and `requirements.txt`.
 
@@ -105,7 +92,7 @@ Gateway is exposed on port `8080` (for example `http://127.0.0.1:8080` locally):
 
 Persistence is handled through the `pgdata` Docker volume in `docker-compose.yml`, so data survives normal restarts and `docker compose down` unless the volume is removed.
 
-Both the Docker Compose and Kubernetes gateways apply nginx rate limiting (`5r/s`, burst `10`) and return `429` when the limit is exceeded.
+Both the Docker Compose and Kubernetes gateways apply nginx rate limiting (`100r/s`, burst `50`) and return `429` when the limit is exceeded.
 
 ## Kubernetes Deployment
 
@@ -144,46 +131,9 @@ URL shortener endpoints:
 - `GET /` (auth required)
 - `POST /` (auth required; accepts optional `custom_id` and `expires_at`)
 - `DELETE /` (auth required)
-- `GET /<id>` (public; returns the stored long URL with status `301`, and includes analytics when called with a valid owner token)
+- `GET /<id>` (public; returns the stored long URL with status `301`)
 - `PUT /<id>` (auth required, owner-only)
 - `DELETE /<id>` (auth required, owner-only)
 - `POST /bulk` (auth required, extra endpoint)
 - `GET /healthz`
 - `GET /readyz`
-
-## Quick Gateway Examples
-
-Create user:
-
-```bash
-curl -X POST http://127.0.0.1:8080/auth/users \
-  -H "Content-Type: application/json" \
-  -d '{"username":"alice","password":"secret"}'
-```
-
-Login:
-
-```bash
-curl -X POST http://127.0.0.1:8080/auth/users/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"alice","password":"secret"}'
-```
-
-Shorten a URL:
-
-```bash
-curl -X POST http://127.0.0.1:8080/ \
-  -H "Authorization: <token>" \
-  -H "Content-Type: application/json" \
-  -d '{"value":"https://example.com"}'
-```
-
-## Testing
-
-With the Docker Compose stack running:
-
-```bash
-python3 -m pytest test_app.py -v
-```
-
-The tests go through the gateway on `127.0.0.1:8080`.
