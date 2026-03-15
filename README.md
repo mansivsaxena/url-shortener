@@ -148,17 +148,12 @@ URL shortener endpoints:
 - `GET /` (auth required)
 - `POST /` (auth required; accepts optional `custom_id` and `expires_at`)
 - `DELETE /` (auth required)
-- `GET /<id>` (public; returns the stored long URL and analytics with status `301`)
+- `GET /<id>` (public; returns the stored long URL with status `301`, and includes analytics when called with a valid owner token)
 - `PUT /<id>` (auth required, owner-only)
 - `DELETE /<id>` (auth required, owner-only)
 - `POST /bulk` (auth required, extra endpoint)
 - `GET /healthz`
 - `GET /readyz`
-
-Additional URL shortener features:
-- `POST /` accepts optional `custom_id` and `expires_at`
-- `GET /<id>` returns click analytics
-- responses from the shortener include `X-Request-ID` and `X-Served-By` headers for request tracing
 
 ## Quick Gateway Examples
 

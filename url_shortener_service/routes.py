@@ -12,6 +12,7 @@ from url_shortener_service.utils import (
     parse_expiration,
     placeholder_short_code,
     cleanup_expired_urls,
+    optional_authenticated_user,
     require_authenticated_user,
 )
 from models import User, db, URL
@@ -134,15 +135,18 @@ def handle_url(id):
             url_entry.click_count += 1
             url_entry.last_accessed = datetime.now(timezone.utc)
             db.session.commit()
-            return jsonify({
-                "value": url_entry.long_url,
-                "analytics": {
+
+            response_body = {"value": url_entry.long_url}
+            username = optional_authenticated_user(request)
+            if username == url_entry.owner.username:
+                response_body["analytics"] = {
                     "click_count": url_entry.click_count,
                     "last_accessed": url_entry.last_accessed.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 }
-            }), 301
+
+            return jsonify(response_body), 301
         else:
-            return jsonify({"error": f"Short URL ID: {id} not found"}), 404 
+            return jsonify({"error": f"Short URL ID: {id} not found"}), 404
 
     username, auth_error = require_authenticated_user(request)
     if auth_error:

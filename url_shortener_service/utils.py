@@ -162,3 +162,10 @@ def require_authenticated_user(req):
     if not is_valid:
         return None, ("forbidden", 403)
     return username, None
+
+def optional_authenticated_user(req):
+    try:
+        is_valid, username = authenticate_request(req)
+    except Exception:
+        return None
+    return username if is_valid else None
