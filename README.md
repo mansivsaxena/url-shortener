@@ -90,10 +90,6 @@ Gateway is exposed on port `8080` (for example `http://127.0.0.1:8080` locally):
 - Auth service via `/auth/*`
 - URL shortener via `/*`
 
-Persistence is handled through the `pgdata` Docker volume in `docker-compose.yml`, so data survives normal restarts and `docker compose down` unless the volume is removed.
-
-Both the Docker Compose and Kubernetes gateways apply nginx rate limiting (`100r/s`, burst `50`) and return `429` when the limit is exceeded.
-
 ## Kubernetes Deployment
 
 All Kubernetes manifests are in `k8s/`. The setup deploys `postgres` (with `k8s/postgres-pvc.yaml` for persistence), `auth`, `shortener`, and an nginx `gateway` exposed through NodePort `30080`. The shortener runs with 3 replicas; the bonus HPA is defined in `k8s/shortener-hpa.yaml`.
@@ -115,25 +111,3 @@ kubectl delete -f k8s/
 ```
 
 After deployment, the gateway is reachable at `http://<node-ip>:30080`.
-
-## API Summary
-
-Auth service endpoints:
-- `POST /auth/users`
-- `PUT /auth/users`
-- `POST /auth/users/login`
-- `GET /auth/users/validate` (internal validation endpoint used by the shortener)
-- `POST /auth/users/logout` (extra endpoint)
-- `GET /auth/healthz`
-- `GET /auth/readyz`
-
-URL shortener endpoints:
-- `GET /` (auth required)
-- `POST /` (auth required; accepts optional `custom_id` and `expires_at`)
-- `DELETE /` (auth required)
-- `GET /<id>` (public; returns the stored long URL with status `301`)
-- `PUT /<id>` (auth required, owner-only)
-- `DELETE /<id>` (auth required, owner-only)
-- `POST /bulk` (auth required, extra endpoint)
-- `GET /healthz`
-- `GET /readyz`
