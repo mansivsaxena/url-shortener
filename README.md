@@ -2,14 +2,13 @@
 
 ## Group 9 - Assignment 3 (Containers & Kubernetes)
 
-Two Flask microservices behind an Nginx reverse proxy, backed by PostgreSQL.
-Deployable locally via Docker Compose or to a Kubernetes cluster.
+This repository contains:
+- `auth_service` for user management, login, JWT issuance, and JWT validation.
+- `url_shortener_service` for per-user URL ownership and URL CRUD.
+- `nginx` as a single gateway in front of both services.
+- `postgres` as the shared persistent database.
 
-- **Auth service** - user registration, login, JWT issuance, token validation.
-- **URL shortener service** - per-user URL CRUD with ownership enforcement.
-- **Nginx gateway** - single entry point routing `/auth/*` to auth and `/*` to shortener.
-
-The shortener never sees the JWT secret; it validates tokens by calling `GET /users/validate` on the auth service.
+The shortener service does not know the JWT secret. It validates tokens by calling auth service `GET /users/validate`.
 
 ## Project Structure
 
@@ -38,11 +37,10 @@ url-shortener/
 │   ├── shortener-service.yaml
 │   ├── nginx-configmap.yaml
 │   ├── nginx-deployment.yaml
-│   └── nginx-service.yaml
+│   ├── nginx-service.yaml
+│   └── shortener-hpa.yaml
 ├── nginx/
 │   └── nginx.conf
-├── extensions.py
-├── models.py
 ├── docker-compose.yml
 ├── .env
 ├── auth_service_run.py
@@ -51,85 +49,121 @@ url-shortener/
 └── requirements.txt
 ```
 
-## Running with Docker Compose
+## Assignment 3 Files
 
-Requires Docker and Docker Compose. No local Postgres install needed - the
-database runs as a container with a persistent volume.
+For assignment 3.1, the main files are:
+- `docker-compose.yml`
+- `auth_service/Dockerfile`
+- `url_shortener_service/Dockerfile`
+- `nginx/nginx.conf`
+- `.env`
+
+For assignment 3.2, the main files are:
+- `k8s/configmap.yaml`
+- `k8s/secret.yaml`
+- `k8s/postgres-pvc.yaml`
+- `k8s/postgres-deployment.yaml`
+- `k8s/postgres-service.yaml`
+- `k8s/auth-deployment.yaml`
+- `k8s/auth-service.yaml`
+- `k8s/shortener-deployment.yaml`
+- `k8s/shortener-service.yaml`
+- `k8s/nginx-configmap.yaml`
+- `k8s/nginx-deployment.yaml`
+- `k8s/nginx-service.yaml`
+- `k8s/shortener-hpa.yaml`
+
+## Docker Compose + Nginx Gateway
+
+Build and run all services:
 
 ```bash
 docker compose up --build -d
 ```
 
-This starts four containers: `db` (Postgres), `auth`, `shortener`, and
-`gateway` (Nginx). The gateway listens on `http://127.0.0.1:8080`.
-
-To stop:
+Stop and remove containers:
 
 ```bash
-docker compose down          # keeps data
-docker compose down -v       # also removes the database volume
+docker compose down
 ```
+
+Remove containers and the Postgres volume:
+
+```bash
+docker compose down -v
+```
+
+Gateway is exposed on `127.0.0.1:8080`:
+- Auth service via `/auth/*`
+- URL shortener via `/*`
+
+Persistence is handled through the `pgdata` Docker volume in `docker-compose.yml`, so data survives normal restarts and `docker compose down` unless the volume is removed.
 
 ## Kubernetes Deployment
 
-The `k8s/` directory contains all manifests needed to deploy the stack on a
-multi-node cluster. See `k8s-setup-commands.md` for the full walkthrough
-(cluster setup, image distribution, manifest apply order).
+All Kubernetes manifests are in the `k8s/` directory.
 
-Key points:
-- Shortener runs with **3 replicas** across worker nodes.
-- Postgres uses a PersistentVolumeClaim for data persistence.
-- The gateway is exposed via **NodePort 30080**.
-- Config and credentials are managed through a ConfigMap and Secret.
+The Kubernetes setup uses:
+- a `postgres` Deployment + Service + PVC
+- an `auth` Deployment + Service
+- a `shortener` Deployment + Service
+- a `gateway` Deployment + NodePort Service
+
+The gateway is exposed through NodePort `30080`.
+
+The shortener runs with 3 replicas for the replication part of the assignment. The bonus HPA is defined in `k8s/shortener-hpa.yaml`.
 
 ## API Summary
 
-**Auth** (`/auth/` via gateway):
+Auth service endpoints:
+- `POST /auth/users`
+- `PUT /auth/users`
+- `POST /auth/users/login`
+- `GET /auth/users/validate`
+- `POST /auth/users/logout`
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/users` | No | Register |
-| PUT | `/users` | Yes | Update password |
-| POST | `/users/login` | No | Login, returns JWT |
-| GET | `/users/validate` | Yes | Validate token |
-| POST | `/users/logout` | Yes | Logout |
+URL shortener endpoints:
+- `GET /` (auth required)
+- `POST /` (auth required)
+- `DELETE /` (auth required)
+- `GET /<id>` (public)
+- `PUT /<id>` (auth required, owner-only)
+- `DELETE /<id>` (auth required, owner-only)
+- `POST /bulk` (auth required)
 
-**Shortener** (`/` via gateway):
+## Quick Gateway Examples
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | `/` | Yes | List user's URLs |
-| POST | `/` | Yes | Shorten a URL |
-| DELETE | `/` | Yes | Delete all user's URLs |
-| GET | `/<id>` | No | Get URL info + analytics |
-| PUT | `/<id>` | Yes | Update URL (owner only) |
-| DELETE | `/<id>` | Yes | Delete URL (owner only) |
-| POST | `/bulk` | Yes | Shorten multiple URLs |
+Create user:
+
+```bash
+curl -X POST http://127.0.0.1:8080/auth/users \
+  -H "Content-Type: application/json" \
+  -d '{"username":"alice","password":"secret"}'
+```
+
+Login:
+
+```bash
+curl -X POST http://127.0.0.1:8080/auth/users/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"alice","password":"secret"}'
+```
+
+Shorten a URL:
+
+```bash
+curl -X POST http://127.0.0.1:8080/ \
+  -H "Authorization: <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"value":"https://example.com"}'
+```
 
 ## Testing
 
-With Docker Compose running:
+With the Docker Compose stack running:
 
 ```bash
-python -m pytest test_app.py -v
+python3 -m pytest test_app.py -v
 ```
 
-`test_app.py` points at the gateway (`127.0.0.1:8080`) and covers all auth and shortener endpoints.
-
-## Demo Script
-
-`demo_app.py` is an interactive step-by-step walkthrough of the full stack. It includes steps for the assignment 3 demo requirements:
-
-```bash
-python demo_app.py                          # Docker Compose (localhost:8080)
-python demo_app.py http://<node-ip>:30080   # Kubernetes
-```
-
-For bonus features, `demo_bonus.py` provides a similarly structured walkthrough of:
-- request tracing headers (`X-Request-ID`, `X-Served-By`)
-- Kubernetes HPA auto-scaling under load
-
-```bash
-python demo_bonus.py                          # Docker Compose (tracing only)
-python demo_bonus.py http://<node-ip>:30080   # Kubernetes
-```
+The tests go through the gateway on `127.0.0.1:8080`.
