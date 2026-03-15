@@ -8,7 +8,7 @@ This repository contains:
 - `nginx` as a single gateway in front of both services.
 - `postgres` as the shared persistent database.
 
-The bonus features in this iteration include Nginx rate limiting on the Docker Compose gateway, a Horizontal Pod Autoscaler for the Kubernetes shortener deployment, and request tracing with X-Request-ID and X-Served-By response headers.
+The bonus features in this iteration include Nginx rate limiting on both the Docker Compose and Kubernetes gateways, a Horizontal Pod Autoscaler for the Kubernetes shortener deployment, and request tracing with X-Request-ID and X-Served-By response headers.
 
 ## Project Structure
 
@@ -105,7 +105,7 @@ Gateway is exposed on port `8080` (for example `http://127.0.0.1:8080` locally):
 
 Persistence is handled through the `pgdata` Docker volume in `docker-compose.yml`, so data survives normal restarts and `docker compose down` unless the volume is removed.
 
-The Docker Compose gateway also applies nginx rate limiting (`5r/s`, burst `10`) and returns `429` when the limit is exceeded.
+Both the Docker Compose and Kubernetes gateways apply nginx rate limiting (`5r/s`, burst `10`) and return `429` when the limit is exceeded.
 
 ## Kubernetes Deployment
 
@@ -128,10 +128,6 @@ kubectl delete -f k8s/
 ```
 
 After deployment, the gateway is reachable at `http://<node-ip>:30080`.
-
-Notes:
-- The Kubernetes gateway does not include the Compose nginx rate-limiting rules.
-- The HPA assumes a metrics API such as `metrics-server` is available.
 
 ## API Summary
 
