@@ -8,7 +8,7 @@ This repository contains:
 - `nginx` as a single gateway in front of both services.
 - `postgres` as the shared persistent database.
 
-The shortener service does not know the JWT secret. It validates tokens by calling auth service `GET /users/validate`.
+The bonus features in this iteration include Nginx rate limiting on the Docker Compose gateway, a Horizontal Pod Autoscaler for the Kubernetes shortener deployment, and request tracing with X-Request-ID and X-Served-By response headers.
 
 ## Project Structure
 
@@ -17,6 +17,7 @@ url-shortener/
 ├── auth_service/
 │   ├── Dockerfile
 │   ├── __init__.py
+│   ├── config.py
 │   ├── routes.py
 │   └── utils.py
 ├── url_shortener_service/
@@ -47,6 +48,7 @@ url-shortener/
 ├── url_shortener_service_run.py
 ├── extensions.py
 ├── models.py
+├── read_from.csv
 ├── test_app.py
 └── requirements.txt
 ```
@@ -75,6 +77,8 @@ For assignment 3.2, the main files are:
 - `k8s/nginx-service.yaml`
 - `k8s/shortener-hpa.yaml`
 
+Both parts use the shared application code in `auth_service/`, `url_shortener_service/`, `models.py`, `extensions.py`, `auth_service_run.py`, `url_shortener_service_run.py`, and `requirements.txt`.
+
 ## Docker Compose + Nginx Gateway
 
 Build and run all services:
@@ -95,25 +99,39 @@ Remove containers and the Postgres volume:
 docker compose down -v
 ```
 
-Gateway is exposed on `127.0.0.1:8080`:
+Gateway is exposed on port `8080` (for example `http://127.0.0.1:8080` locally):
 - Auth service via `/auth/*`
 - URL shortener via `/*`
 
 Persistence is handled through the `pgdata` Docker volume in `docker-compose.yml`, so data survives normal restarts and `docker compose down` unless the volume is removed.
 
+The Docker Compose gateway also applies nginx rate limiting (`5r/s`, burst `10`) and returns `429` when the limit is exceeded.
+
 ## Kubernetes Deployment
 
-All Kubernetes manifests are in the `k8s/` directory.
+All Kubernetes manifests are in `k8s/`. The setup deploys `postgres` (with `k8s/postgres-pvc.yaml` for persistence), `auth`, `shortener`, and an nginx `gateway` exposed through NodePort `30080`. The shortener runs with 3 replicas; the bonus HPA is defined in `k8s/shortener-hpa.yaml`.
 
-The Kubernetes setup uses:
-- a `postgres` Deployment + Service + PVC
-- an `auth` Deployment + Service
-- a `shortener` Deployment + Service
-- a `gateway` Deployment + NodePort Service
+Build the service images used by the Kubernetes Deployments:
 
-The gateway is exposed through NodePort `30080`.
+```bash
+docker build -t auth:latest -f auth_service/Dockerfile .
+docker build -t shortener:latest -f url_shortener_service/Dockerfile .
+```
 
-The shortener runs with 3 replicas for the replication part of the assignment. The bonus HPA is defined in `k8s/shortener-hpa.yaml`.
+The manifests use `imagePullPolicy: Never`, so these images must be available on the Kubernetes worker nodes before deployment.
+
+Deploy or remove everything:
+
+```bash
+kubectl apply -f k8s/
+kubectl delete -f k8s/
+```
+
+After deployment, the gateway is reachable at `http://<node-ip>:30080`.
+
+Notes:
+- The Kubernetes gateway does not include the Compose nginx rate-limiting rules.
+- The HPA assumes a metrics API such as `metrics-server` is available.
 
 ## API Summary
 
@@ -121,17 +139,26 @@ Auth service endpoints:
 - `POST /auth/users`
 - `PUT /auth/users`
 - `POST /auth/users/login`
-- `GET /auth/users/validate`
-- `POST /auth/users/logout`
+- `GET /auth/users/validate` (internal validation endpoint used by the shortener)
+- `POST /auth/users/logout` (extra endpoint)
+- `GET /auth/healthz`
+- `GET /auth/readyz`
 
 URL shortener endpoints:
 - `GET /` (auth required)
-- `POST /` (auth required)
+- `POST /` (auth required; accepts optional `custom_id` and `expires_at`)
 - `DELETE /` (auth required)
-- `GET /<id>` (public)
+- `GET /<id>` (public; returns the stored long URL and analytics with status `301`)
 - `PUT /<id>` (auth required, owner-only)
 - `DELETE /<id>` (auth required, owner-only)
-- `POST /bulk` (auth required)
+- `POST /bulk` (auth required, extra endpoint)
+- `GET /healthz`
+- `GET /readyz`
+
+Additional URL shortener features:
+- `POST /` accepts optional `custom_id` and `expires_at`
+- `GET /<id>` returns click analytics
+- responses from the shortener include `X-Request-ID` and `X-Served-By` headers for request tracing
 
 ## Quick Gateway Examples
 
@@ -158,15 +185,6 @@ curl -X POST http://127.0.0.1:8080/ \
   -H "Authorization: <token>" \
   -H "Content-Type: application/json" \
   -d '{"value":"https://example.com"}'
-```
-
-Rate limiting:
-```bash
-for i in {1..20}; do
-  curl -o /dev/null -s -w "%{http_code}\n" -X POST http://127.0.0.1:8080/auth/users \
-  -H "Content-Type: application/json" \
-  -d "{\"username\":\"test$i\",\"password\":\"password\"}"
-done
 ```
 
 ## Testing
