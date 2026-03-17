@@ -57,6 +57,13 @@ spec:
               port: 8001
             initialDelaySeconds: 5
             periodSeconds: 10
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "250m"
+              memory: "128Mi"
           readinessProbe:
             httpGet:
               path: /readyz

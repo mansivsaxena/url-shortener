@@ -33,6 +33,15 @@ spec:
                 configMapKeyRef:
                   name: app-config
                   key: DB_NAME
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "64Mi"
+            limits:
+              cpu: "500m"
+              memory: "128Mi"
           volumeMounts:
             - name: postgres-storage
               mountPath: /var/lib/postgresql/data
