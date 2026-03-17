@@ -10,3 +10,4 @@ class Config:
     host = os.getenv("DB_HOST", "localhost")
     SQLALCHEMY_DATABASE_URI = f"postgresql://{user}:{pw}@{host}:{port}/{db_name}"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {"pool_size": 2, "max_overflow": 3}
