@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: app-config
-data:
-  DB_NAME: "WebService-Assignment-URL-shortener"
-  DB_PORT: "5432"
-  DB_HOST: "postgres"
-  AUTH_SERVICE_URL: "http://auth:8001"

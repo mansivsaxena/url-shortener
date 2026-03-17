@@ -27,19 +27,11 @@ url-shortener/
 │   ├── routes.py
 │   └── utils.py
 ├── k8s/
-│   ├── configmap.yaml
-│   ├── secret.yaml
-│   ├── postgres-pvc.yaml
-│   ├── postgres-deployment.yaml
-│   ├── postgres-service.yaml
-│   ├── auth-deployment.yaml
-│   ├── auth-service.yaml
-│   ├── shortener-deployment.yaml
-│   ├── shortener-service.yaml
-│   ├── nginx-configmap.yaml
-│   ├── nginx-deployment.yaml
-│   ├── nginx-service.yaml
-│   └── shortener-hpa.yaml
+│   ├── config.yaml
+│   ├── postgres.yaml
+│   ├── auth.yaml
+│   ├── shortener.yaml
+│   └── nginx.yaml
 ├── nginx/
 │   └── nginx.conf
 ├── docker-compose.yml
@@ -92,7 +84,7 @@ Gateway is exposed on port `8080` (for example `http://127.0.0.1:8080` locally):
 
 ## Kubernetes Deployment
 
-All Kubernetes manifests are in `k8s/`. The setup deploys `postgres` (with `k8s/postgres-pvc.yaml` for persistence), `auth`, `shortener`, and an nginx `gateway` exposed through NodePort `30080`. The shortener runs with 3 replicas; the bonus HPA is defined in `k8s/shortener-hpa.yaml`.
+All Kubernetes manifests are in `k8s/`, consolidated by component: `config.yaml` (ConfigMap + Secret), `postgres.yaml` (PVC + Deployment + Service), `auth.yaml` (Deployment + Service), `shortener.yaml` (Deployment + Service + HPA), and `nginx.yaml` (ConfigMap + Deployment + Service). The setup deploys `postgres` with a persistent volume, `auth`, `shortener` with 3–6 replicas managed by HPA, and an nginx `gateway` exposed through NodePort `30080`.
 
 Build the service images used by the Kubernetes Deployments:
 
