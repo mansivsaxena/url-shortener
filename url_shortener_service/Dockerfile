@@ -5,6 +5,8 @@ WORKDIR /app
 COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
+COPY extensions.py /app/extensions.py
+COPY models.py /app/models.py
 COPY url_shortener_service /app/url_shortener_service
 COPY url_shortener_service_run.py /app/url_shortener_service_run.py
 

@@ -1,24 +1,36 @@
 from collections import OrderedDict
 from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify
+from sqlalchemy import text
 from url_shortener_service.utils import (
-    shorten_url,
+    assign_short_code,
     is_valid_url,
     bad_request,
     extract_url,
     get_json_body,
     is_valid_custom_id,
     parse_expiration,
+    placeholder_short_code,
     cleanup_expired_urls,
+    optional_authenticated_user,
     require_authenticated_user,
 )
+from models import User, db, URL
 
 main_bp = Blueprint("main", __name__)
 
-short_urls = {}
-analytics = {}
-expirations = {}
-owners = {}
+@main_bp.route("/healthz", methods=["GET"])
+def healthcheck():
+    return jsonify({"status": "ok"}), 200
+
+@main_bp.route("/readyz", methods=["GET"])
+def readiness():
+    try:
+        db.session.execute(text("SELECT 1"))
+        return jsonify({"status": "ready"}), 200
+    except Exception:
+        db.session.rollback()
+        return jsonify({"status": "not ready"}), 503
 
 @main_bp.route("/", methods=["GET", "POST", "DELETE"])
 def manage_urls():
@@ -41,13 +53,15 @@ def manage_urls():
     if auth_error:
         return auth_error
 
-    cleanup_expired_urls(short_urls, analytics, expirations, owners)
+    cleanup_expired_urls()
+
+    owner_id = User.query.filter_by(username=username).first().id
 
     if request.method == "GET":
         contains = request.args.get("contains")
         sort_by = request.args.get("sort_by")  # has to be either "short"/"long"
 
-        items = [(short_id, url) for short_id, url in short_urls.items() if owners.get(short_id) == username]
+        items = [(url.short_code, url.long_url) for url in URL.query.filter_by(owner_id=owner_id).all()]
 
         # filtering
         if contains:
@@ -74,10 +88,9 @@ def manage_urls():
             return bad_request()
 
         custom_id = req_body.get("custom_id") if req_body else None
-    
         if custom_id:
             custom_id = custom_id.strip().lower()
-            if custom_id in short_urls:
+            if URL.query.filter_by(short_code=custom_id).first():
                 return jsonify({
                     "error": "ID already exists. Please choose a different one."
                 }), 400
@@ -89,24 +102,19 @@ def manage_urls():
             
             short_id = custom_id
         else:
-            short_id = shorten_url()
-            while short_id in short_urls:     
-                short_id = shorten_url()
+            short_id = placeholder_short_code()
 
-        short_urls[short_id] = long_url
-        analytics[short_id] = {"click_count": 0, "last_accessed": None}
-        owners[short_id] = username
-        if exp_dt is not None:
-            expirations[short_id] = exp_dt
-        return jsonify({"id": short_id}), 201
+        new_url_entry = URL(short_code=short_id, long_url=long_url, owner_id=owner_id, expires_at=exp_dt)
+        db.session.add(new_url_entry)
+        if not custom_id:
+            assign_short_code(new_url_entry)
+        db.session.commit()
+        return jsonify({"id": new_url_entry.short_code}), 201
 
     elif request.method == "DELETE":
-        user_ids = [short_id for short_id, owner in owners.items() if owner == username]
-        for short_id in user_ids:
-            short_urls.pop(short_id, None)
-            analytics.pop(short_id, None)
-            expirations.pop(short_id, None)
-            owners.pop(short_id, None)
+        URL.query.filter_by(owner_id=owner_id).delete()
+        db.session.commit()
+
         return "", 404
 
 @main_bp.route("/<id>", methods=["GET", "PUT", "DELETE"])
@@ -120,49 +128,53 @@ def handle_url(id):
         Assignment 2 addition: Authentication (described above)
     """
     if request.method == "GET":
-        cleanup_expired_urls(short_urls, analytics, expirations, owners)
-        long_url = short_urls.get(id)
-        if long_url:
-            analytics[id]["click_count"] += 1
-            analytics[id]["last_accessed"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-            return jsonify({
-                "value": long_url,
-                "analytics": analytics[id]
-            }), 301
+        cleanup_expired_urls()
+        
+        url_entry = URL.query.filter_by(short_code=id).first()
+        if url_entry:
+            url_entry.click_count += 1
+            url_entry.last_accessed = datetime.now(timezone.utc)
+            db.session.commit()
+
+            response_body = {"value": url_entry.long_url}
+            username = optional_authenticated_user(request)
+            if username == url_entry.owner.username:
+                response_body["analytics"] = {
+                    "click_count": url_entry.click_count,
+                    "last_accessed": url_entry.last_accessed.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                }
+
+            return jsonify(response_body), 301
         else:
-            return jsonify({"error": f"Short URL ID: {id} not found"}), 404 
+            return jsonify({"error": f"Short URL ID: {id} not found"}), 404
 
     username, auth_error = require_authenticated_user(request)
     if auth_error:
         return auth_error
 
-    cleanup_expired_urls(short_urls, analytics, expirations, owners)
+    cleanup_expired_urls()
+
+    url_entry = URL.query.filter_by(short_code=id).first()
+    if not url_entry:
+        return jsonify({"error": f"Short URL ID: {id} not found"}), 404
+    if url_entry.owner.username != username:
+        return "forbidden", 403
 
     if request.method == "PUT":
-        if id not in short_urls:
-            return jsonify({"error": f"Short URL ID: {id} not found"}), 404
-        if owners.get(id) != username:
-            return "forbidden", 403
-
         req_body = get_json_body()
         new_url = extract_url(req_body)
 
         if not new_url or not is_valid_url(new_url):
             return bad_request()
 
-        short_urls[id] = new_url
+        url_entry.long_url = new_url
+        db.session.commit()
         return jsonify({"message": f"URL for short ID {id} updated successfully"}), 200
 
     elif request.method == "DELETE": 
-        if id not in short_urls:
-            return jsonify({"error": f"Short URL ID: {id} not found"}), 404
-        if owners.get(id) != username:
-            return "forbidden", 403
+        db.session.delete(url_entry)
+        db.session.commit()
 
-        del short_urls[id]
-        analytics.pop(id, None)
-        expirations.pop(id, None)
-        owners.pop(id, None)
         # 204 doesnt allow any response body so empty message
         return "", 204
  
@@ -176,32 +188,38 @@ def bulk_shorten():
     if auth_error:
         return auth_error
 
-    cleanup_expired_urls(short_urls, analytics, expirations, owners)
+    cleanup_expired_urls()
+    owner_id = User.query.filter_by(username=username).first().id
 
     req_body = get_json_body()
-
     if not isinstance(req_body, dict):
         return bad_request()
 
     urls = req_body.get("values")
     if not isinstance(urls, list) or not urls:
         return bad_request()
-
     success = {}
     failed = []
+    new_url_objects = [] 
 
     for url in urls:
         if not isinstance(url, str) or not url or not is_valid_url(url):
             failed.append(url)
             continue
 
-        short_id = shorten_url()
-        while short_id in short_urls:
-            short_id = shorten_url()
-        short_urls[short_id] = url
-        analytics[short_id] = {"click_count": 0, "last_accessed": None}
-        owners[short_id] = username
-        success[short_id] = url
+        new_url_objects.append(URL(
+            short_code=placeholder_short_code(),
+            long_url=url, 
+            owner_id=owner_id
+        ))
+
+    if new_url_objects:
+        db.session.add_all(new_url_objects)
+        db.session.flush()
+        for url_entry in new_url_objects:
+            short_id = assign_short_code(url_entry)
+            success[short_id] = url_entry.long_url
+        db.session.commit()
 
     return jsonify({
         "success": success,

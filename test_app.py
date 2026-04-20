@@ -7,8 +7,8 @@ import random
 
 class TestApi(unittest.TestCase):
     # modify this to your local server settings
-    base_url = "http://127.0.0.1:8000"
-    auth_url = "http://127.0.0.1:8001"
+    base_url = "http://127.0.0.1:8080"
+    auth_url = "http://127.0.0.1:8080/auth"
     end_point = "/"
     test_username = "test"
     test_password = "test"
@@ -101,7 +101,6 @@ class TestApi(unittest.TestCase):
 
     def test_put_id(self):
         id = self.id_shortened_url_1
-        url_to_update = self.id_shortened_url_1
         url_after_update = self.url_after_update
         not_existing_id = self.not_existing_id
         invalid_url = self.invalid_url
